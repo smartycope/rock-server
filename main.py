@@ -9,6 +9,7 @@ from pathlib import Path
 import threading
 from flask import has_request_context, request
 from collections import deque
+from multiprocessing import Manager, Lock
 
 # If we're running on the server, we're not debugging
 DEBUG = os.uname().nodename != "rockpi-4b"
@@ -21,26 +22,33 @@ app = Flask(__name__)
 app.logger.setLevel(logging.DEBUG)
 log = app.logger
 
+
 class InMemoryHandler(logging.Handler):
-    """ Custom in-memory log handler with fixed size """
+    """ Multi-process-safe in-memory log handler with fixed size """
     def __init__(self, formatter: logging.Formatter, capacity: int = 1000):
         super().__init__()
-        self.records: deque[logging.LogRecord] = deque(maxlen=capacity)  # Keep last N records
+        self.manager = Manager()
+        self.records = self.manager.list()
+        self.capacity = capacity
         self.setFormatter(formatter)
         self.setLevel(logging.DEBUG)
+        self.process_lock = Lock()
 
     def emit(self, record: logging.LogRecord):
-        with self.lock:
+        with self.process_lock:
             self.records.append(record)
+            if len(self.records) > self.capacity:
+                del self.records[0 : len(self.records) - self.capacity]
 
     def get_logs(self, level: str) -> list[str]:
-        with self.lock:
+        with self.process_lock:
             threshold = logging._nameToLevel[level]
             return [
                 self.format(r)
                 for r in self.records
                 if r.levelno >= threshold
             ]
+
 
 memory_handler = InMemoryHandler(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
 app.logger.addHandler(memory_handler)
@@ -124,6 +132,9 @@ def info():
             "storage_percent": psutil.disk_usage("/").percent,
             "pi_uptime_seconds": time.time() - psutil.boot_time(),
             "pi_uptime_human": time.strftime("%m-%d-%Y %H:%M:%S", time.localtime(time.time() - psutil.boot_time())),
+            "last_commit_msg": repo.head.commit.message,
+            "last_commit_time": time.strftime("%m-%d-%Y %H:%M:%S", time.localtime(repo.head.commit.authored_date)),
+            "last_commit_age": time.strftime("%H:%M:%S", time.localtime(time.time() - repo.head.commit.authored_date)),
         }, 200
 
 @app.route("/install/<package>/", methods=["POST"])
