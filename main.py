@@ -16,7 +16,6 @@ DEBUG = os.uname().nodename != "rockpi-4b"
 # DEBUG = os.getlogin() != "rock"
 SERVICE_NAME = "rock-server"
 
-
 app = Flask(__name__)
 # Set the logger to debug level because we're filtering later
 app.logger.setLevel(logging.DEBUG)
@@ -66,22 +65,17 @@ def not_found(error):
     """ Return a 404 error page """
     return redirect(url_for('static', filename='error.html'))
 
-
-def restart_service():
-    time.sleep(0.1)
-    log.info("Service restarting")
-    if not DEBUG:
-        subprocess.run(["sudo", "systemctl", "restart", SERVICE_NAME])
-    else:
-        # simulate a SIGTERM
-        exit(15)
-
 @app.route("/restart/", methods=["POST"])
 def restart():
     """ Restart the server """
-    # I've disabled error handling, because restarting this process will naturally
-    # cause a SIGTERM (15) error. This works every time I try it, so I'm
-    # calling it good
+    def restart_service():
+        time.sleep(0.1)
+        log.info("Service restarting")
+        if not DEBUG:
+            subprocess.run(["sudo", "systemctl", "restart", SERVICE_NAME])
+        else:
+            # simulate a SIGTERM
+            exit(15)
     try:
         log.info("Restarting service...")
         # Start a new thread, have it restart the service after a short delay
@@ -99,11 +93,12 @@ def github_webhook():
         log.info("Pulling from remote...")
         origin = repo.remotes.origin
         origin.pull()
+        repo.submodule_update(init=True, recursive=True)
         log.info("Pull successful")
     except Exception as e:
         log.error("Failed to pull from remote: %s", e)
         return jsonify({"error": str(e)}), 500
-    return restart_service()
+    return restart()
 
 @app.route("/info/")
 def info():
@@ -134,12 +129,10 @@ def install_package(package):
         return jsonify({"error": str(e)}), 500
     return jsonify({"status": "ok"}), 200
 
-# There's probably a better, more flasky way to do this
 @app.route("/docs/")
 def docs():
     """ Return the documentation """
     return redirect(url_for("static", filename="docs/index.html"))
-
 
 @app.route('/logs/<level>')
 def get_logs(level):
@@ -149,9 +142,9 @@ def get_logs(level):
 
     return '<br/>'.join(memory_handler.get_logs(level))
 
-# Log all requests
 @app.before_request
 def log_request_info():
+    """ Log all requests """
     log.debug("Request: %s %s", request.method, request.url)
 
 if __name__ == "__main__":
