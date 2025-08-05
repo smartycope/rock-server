@@ -10,10 +10,16 @@ will load a fix from the repo, restart the server, and check the status of the p
 
 To run locally:
 ```bash
+flask --app main run --debug
+```
+
+or
+```bash
 python main.py
 ```
+also works, but without debug mode
 
 To update docs:
 ```bash
-pdoc --output-dir templates/docs main.py
+pdoc --output-dir static/docs main.py
 ```

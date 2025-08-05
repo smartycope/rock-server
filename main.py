@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, redirect, request, jsonify, render_template, url_for
 import subprocess
 import git
 import logging
@@ -39,7 +39,7 @@ def index():
     log.info("Hello, world!")
     return "Hello, world!"
 
-@app.route("/restart", methods=["POST"])
+@app.route("/restart/", methods=["POST"])
 def restart_service():
     """ Restart the server """
     # I've disabled error handling, because restarting this process will naturally
@@ -53,7 +53,7 @@ def restart_service():
     # except subprocess.CalledProcessError as e:
     #     return jsonify({"error": str(e)}), 500
 
-@app.route("/github-webhook", methods=["POST"])
+@app.route("/github-webhook/", methods=["POST"])
 def github_webhook():
     """ Triggered by the github repo. Pulls the latest changes and restarts the server """
     log.info("Github change detected")
@@ -67,12 +67,12 @@ def github_webhook():
         return jsonify({"error": str(e)}), 500
     return restart_service()
 
-@app.route("/logs")
+@app.route("/logs/")
 def logs():
     """ Return the server logs """
     return render_template("logs_template.html", logs=log_stream.getvalue()), 200
 
-@app.route("/info")
+@app.route("/info/")
 def info():
     """ Return information about the server """
     proc = psutil.Process(os.getpid())
@@ -89,7 +89,7 @@ def info():
         }
     ), 200
 
-@app.route("/install/<package>", methods=["POST"])
+@app.route("/install/<package>/", methods=["POST"])
 def install_package(package):
     """ Install a package using pip """
     try:
@@ -102,10 +102,10 @@ def install_package(package):
     return jsonify({"status": "ok"}), 200
 
 # There's probably a better, more flasky way to do this
-@app.route("/docs")
+@app.route("/docs/")
 def docs():
     """ Return the documentation """
-    return Path("templates/docs/main.html").read_text(), 200
+    return redirect(url_for("static", filename="docs/index.html"))
 
 # Log all requests
 @app.before_request
