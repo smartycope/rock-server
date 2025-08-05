@@ -10,6 +10,7 @@ import threading
 from flask import has_request_context, request
 from collections import deque
 from multiprocessing import Manager, Lock
+from logging.handlers import RotatingFileHandler
 
 # If we're running on the server, we're not debugging
 DEBUG = os.uname().nodename != "rockpi-4b"
@@ -23,35 +24,47 @@ app.logger.setLevel(logging.DEBUG)
 log = app.logger
 
 
-class InMemoryHandler(logging.Handler):
-    """ Multi-process-safe in-memory log handler with fixed size """
-    def __init__(self, formatter: logging.Formatter, capacity: int = 1000):
-        super().__init__()
-        self.manager = Manager()
-        self.records = self.manager.list()
-        self.capacity = capacity
-        self.setFormatter(formatter)
-        self.setLevel(logging.DEBUG)
-        self.process_lock = Lock()
+# This *should* work
+# class InMemoryHandler(logging.Handler):
+    # """ Multi-process-safe in-memory log handler with fixed size """
+    # def __init__(self, formatter: logging.Formatter, capacity: int = 1000):
+    #     super().__init__()
+    #     self.manager = Manager()
+    #     self.records = self.manager.list()
+    #     self.capacity = capacity
+    #     self.setFormatter(formatter)
+    #     self.setLevel(logging.DEBUG)
+    #     self.process_lock = Lock()
 
-    def emit(self, record: logging.LogRecord):
-        with self.process_lock:
-            self.records.append(record)
-            if len(self.records) > self.capacity:
-                del self.records[0 : len(self.records) - self.capacity]
+    # def emit(self, record: logging.LogRecord):
+    #     with self.process_lock:
+    #         self.records.append(record)
+    #         if len(self.records) > self.capacity:
+    #             del self.records[0 : len(self.records) - self.capacity]
 
-    def get_logs(self, level: str) -> list[str]:
-        with self.process_lock:
-            threshold = logging._nameToLevel[level]
-            return [
-                self.format(r)
-                for r in self.records
-                if r.levelno >= threshold
-            ]
+    # def get_logs(self, level: str) -> list[str]:
+    #     with self.process_lock:
+    #         threshold = logging._nameToLevel[level]
+    #         return [
+    #             self.format(r)
+    #             for r in self.records
+    #             if r.levelno >= threshold
+    #         ]
+
+# memory_handler = InMemoryHandler(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+# app.logger.addHandler(memory_handler)
 
 
-memory_handler = InMemoryHandler(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
-app.logger.addHandler(memory_handler)
+
+
+# Set up file-based logging
+LOG_FILE = 'app.log'
+# 1MB
+file_handler = RotatingFileHandler(LOG_FILE, maxBytes=1024*1024, backupCount=1)
+file_handler.setLevel(logging.DEBUG)
+file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+app.logger.addHandler(file_handler)
+
 
 
 if not DEBUG:
@@ -154,14 +167,38 @@ def docs():
     """ Return the documentation """
     return redirect(url_for("static", filename="docs/index.html"))
 
+# @app.route('/logs/<level>/')
+# def get_logs(level):
+#     """ Return logs for a given level """
+#     level = level.upper()
+#     if level not in logging._nameToLevel:
+#         return f'Invalid level: {level}', 400
+
+#     return render_template('logs_template.html', logs=memory_handler.get_logs(level))
+
 @app.route('/logs/<level>/')
 def get_logs(level):
-    """ Return logs for a given level """
     level = level.upper()
     if level not in logging._nameToLevel:
         return f'Invalid level: {level}', 400
 
-    return render_template('logs_template.html', logs=memory_handler.get_logs(level))
+    threshold = logging._nameToLevel[level]
+    lines = []
+
+    try:
+        with open(LOG_FILE, 'r') as f:
+            for line in f:
+                try:
+                    levelname = line.split(' - ')[1]
+                    if logging._nameToLevel.get(levelname, 100) >= threshold:
+                        lines.append(line.strip())
+                except Exception:
+                    continue  # skip malformed lines
+    except FileNotFoundError:
+        lines.append("Log file not found.")
+
+    return render_template('logs_template.html', logs=lines)
+
 
 @app.before_request
 def log_request_info():
