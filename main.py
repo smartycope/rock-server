@@ -3,7 +3,7 @@ import subprocess
 import git
 import logging
 import io
-import psutil
+# import psutil
 import os
 import time
 
@@ -54,21 +54,21 @@ def github_webhook():
 def logs():
     return log_stream.getvalue()
 
-@app.route("/info")
-def info():
-    proc = psutil.Process(os.getpid())
-    start_time = proc.create_time()
-    uptime_seconds = time.time() - start_time
-    return jsonify(
-        {
-            "status": "ok",
-            "server_started": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(start_time)),
-            "uptime": uptime_seconds,
-            "uptime_human": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(uptime_seconds)),
-            "current_packages": subprocess.check_output([python_binary, "-m", "pip", "freeze"]).decode("utf-8").split("\n"),
-            "logs": log_stream.getvalue()
-        }
-    ), 200
+# @app.route("/info")
+# def info():
+#     proc = psutil.Process(os.getpid())
+#     start_time = proc.create_time()
+#     uptime_seconds = time.time() - start_time
+#     return jsonify(
+#         {
+#             "status": "ok",
+#             "server_started": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(start_time)),
+#             "uptime": uptime_seconds,
+#             "uptime_human": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(uptime_seconds)),
+#             "current_packages": subprocess.check_output([python_binary, "-m", "pip", "freeze"]).decode("utf-8").split("\n"),
+#             "logs": log_stream.getvalue()
+#         }
+#     ), 200
 
 @app.route("/install/<package>", methods=["POST"])
 def install_package(package):
