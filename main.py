@@ -8,7 +8,9 @@ import os
 import time
 
 # If we're running on the server, we're not debugging
-DEBUG = os.getlogin() != "rock"
+DEBUG = os.uname().nodename == "rockpi-4b"
+# This *doesn't* work, because we run the process as root
+# DEBUG = os.getlogin() != "rock"
 
 # Custom logging, since it's not super accessible using gunicorn
 log_stream = io.StringIO('Server started')
