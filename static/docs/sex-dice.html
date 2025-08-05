@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <!-- <link rel="icon" href="%PUBLIC_URL%/favicon.ico" /> -->
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="Sex Dice" content="An automated version of sex dice" />
+    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+    <title>Sex Dice</title>
+    <style>
+        body{
+            display: grid;
+            place-items: center;
+        }
+        h2{
+            height: 90vh;
+            display: grid;
+            place-items: center;
+        }
+        #filler{
+            flex:1;
+        }
+        hr{
+            width: 300px;
+            margin: 30px;
+        }
+    </style>
+  </head>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+
+    <audio id="audio" preload="auto" autobuffer loop>
+        <source src="https://cdn.freesound.org/previews/496/496508_8923841-lq.ogg" type="audio/ogg">
+    </audio>
+
+    <h1>Sex Dice</h1>
+    <p>Name of partner 1</p>
+    <input type="text" value="" id="a"/>
+    <p>Name of partner 2</p>
+    <input type="text" value="" id="b"/>
+    <hr/>
+    <p title="The minimum amount of time the timer lasts for">Min Seconds</p>
+    <input type="number" value="30" id="min" title="The minimum amount of time the timer lasts for"/>
+    <p title="The maximum amount of time the timer lasts for">Max Seconds</p>
+    <input type="number" value="60" id="max" title="The maximum amount of time the timer lasts for"/>
+    <p title="How long the timer will beep before rerolling">Timer Timeout (seconds)</p>
+    <input type="number" value="10" id="timeout" title="How long the timer will beep before rerolling"/>
+    <hr/>
+    <label for="turns">Take turns instead of random:</label>
+    <input type="checkbox" id="turns" name="turns"/>
+    <br/>
+    <label title="Include goofy actions like 'blow on' and 'impersonate'" for="goof">Goofy mode</label>
+    <input type="checkbox" id="goof" name="goof" title="Include goofy actions like 'blow on' and 'impersonate'" checked/>
+    <br/>
+    <br/>
+    <button id="start">Click to start</button>
+    <br/>
+    <br/>
+    <br/>
+    <br/>
+    <p>
+        As soon as you hit start, a random action and body part are chosen and a timer starts.
+        The one partner has to do what it says to the other until the timer goes off (you'll hear it).
+        When the timer goes off (or if you don't like the roll), click anywhere on screen to roll again.
+    </p>
+    <hr/>
+    <h6>
+        This is only approved for consenting couples. Please don't use otherwise.
+    </h6>
+
+
+    <script defer>
+        // place, probability
+        const places = [
+            ['lips',            .8],
+            ['upper genitalia', .8],
+            ['lower genitalia', .8],
+            ['feet',            .7],
+            ['armpit',          .1],
+            ['hair',            .3],
+            ['neck',            .7],
+            ['chest',           .7],
+            ['nipples',         .5],
+            ['fingertips',      .5],
+            ['hands',           .4],
+            ['arms',            .35],
+            ['legs',            .4],
+            ['thighs',          .45],
+            ['crotch',          .7],
+            ['tongue',          .5],
+            ['toes',            .1],
+            ['heels',           .1],
+            ['calves',          .2],
+            ['forearms',        .2],
+            ['waist',           .2],
+            ['knees',           .1],
+            ['belly',           .1],
+            ['belly-button',    .05],
+            ['butt',            .4],
+            ['back',            .4],
+            ['breasts',         .45],
+            ['cheek',           .4],
+            ['teeth',           .1],
+            ['cleavage',        .1],
+            ['elbow',           .1],
+            ['inner thigh',     .3],
+        ]
+
+        const actions = [
+            ['lick',          .8, false],
+            ['kiss',          .9, false],
+            ['smack',         .3, false],
+            ['fuck',          .7, false],
+            ['caress',        .8, false],
+            ['eat out',       .6, false],
+            ['make out with', .6, false],
+            ['tease',         .75,false],
+            ['rub',           .8, false],
+            ['titillate',     .5, false],
+            ['suck',          .35,false],
+            ['bite',          .35,false],
+            ['scratch',       .4, false],
+            ['vibrate',       .8, false],
+            ['lubricate',     .4, false],
+            ['massage',       .6, false],
+            ['cuddle',        .7, false],
+            ['fondle',        .8, false],
+            ['stare at',      .1, true],
+            ['blow on',       .1, true],
+            ['tickle',        .2, true],
+            ['seduce',        .1, true],
+            ['poke',          .1, true],
+            ['impersonate',   .1, true],
+            ['sniff',         .1, true],
+            ['hug',           .1, true],
+        ]
+
+        // Goofy actions go for this long instead of a normal random amount of time
+        const goofSec = 10
+        let timerTimeout
+
+        let text
+        const audio = document.getElementById('audio')
+        const button = document.getElementById('start')
+
+        let minSec
+        let maxSec
+        let people
+        let turns
+
+        let person
+        let currentTimer
+        let timerTimer
+
+        function weighted_random(options) {
+            const sum = options.reduce((partialSum, a) => partialSum + a[1], 0);
+            var i;
+
+            var weights = [options[0][1] / sum];
+
+            for (i = 1; i < options.length; i++)
+                weights[i] = (options[i][1] / sum) + weights[i - 1];
+
+            var random = Math.random() * weights[weights.length - 1];
+
+            for (i = 0; i < weights.length; i++)
+                if (weights[i] > random)
+                    break;
+
+            return options[i];
+        }
+
+        function choose(choices) {
+            var index = Math.floor(Math.random() * choices.length);
+            return choices[index];
+        }
+
+        function getRandomInt(min, max) {
+            const minCeiled = Math.ceil(min);
+            const maxFloored = Math.floor(max);
+            return Math.floor(Math.random() * (maxFloored - minCeiled) + minCeiled);
+        }
+
+        const other = (p) => p === people[0] ? people[1] : people[0]
+
+        const playForBit = () => {
+            audio.play()
+            timerTimer = setTimeout(genNext, timerTimeout*1000)
+        }
+
+        const genNext = () => {
+            clearTimeout(currentTimer)
+            clearTimeout(timerTimer)
+            audio.pause()
+            beeping = false
+            person = turns ? other(person) : choose(people)
+            var action
+            do{
+                action = weighted_random(actions)
+            }
+            while (!goof && action[2])
+            text.innerText = `${person} has to ${action[0]} ${other(person)}'s ${weighted_random(places)[0]}`
+            console.log(action[2]);
+            currentTimer = setTimeout(
+                playForBit,
+                action[2] ? goofSec * 1000 : getRandomInt(minSec*1000, maxSec*1000)
+            )
+        }
+
+        button.addEventListener("click", (event) => {
+            minSec = document.getElementById('min').value
+            maxSec = document.getElementById('max').value
+            console.log(minSec);
+            console.log(maxSec);
+            timerTimeout = document.getElementById('timeout').value
+            turns = document.getElementById('turns').checked
+            goof = document.getElementById('goof').checked
+            people = [document.getElementById('a').value, document.getElementById('b').value]
+            document.addEventListener('click', genNext)
+            document.body.innerHTML =
+                '<h2 id="text"></h2><div id="filler"/><button id="exit">Exit</button>'
+            text = document.getElementById('text')
+            document.getElementById('exit').addEventListener("click", e =>
+                confirm("Exit?") ? location.reload() : undefined
+            )
+        })
+    </script>
+  </body>
+</html>

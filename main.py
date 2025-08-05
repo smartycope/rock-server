@@ -8,8 +8,6 @@ import time
 from pathlib import Path
 import threading
 from flask import has_request_context, request
-from collections import deque
-from multiprocessing import Manager, Lock
 from logging.handlers import RotatingFileHandler
 
 # If we're running on the server, we're not debugging
@@ -59,8 +57,7 @@ log = app.logger
 
 # Set up file-based logging
 LOG_FILE = 'app.log'
-# 1MB
-file_handler = RotatingFileHandler(LOG_FILE, maxBytes=1024*1024, backupCount=1)
+file_handler = RotatingFileHandler(LOG_FILE, maxBytes=1024*1024, backupCount=1) # 1MB
 file_handler.setLevel(logging.DEBUG)
 file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
 app.logger.addHandler(file_handler)
@@ -166,15 +163,6 @@ def install_package(package):
 def docs():
     """ Return the documentation """
     return redirect(url_for("static", filename="docs/index.html"))
-
-# @app.route('/logs/<level>/')
-# def get_logs(level):
-#     """ Return logs for a given level """
-#     level = level.upper()
-#     if level not in logging._nameToLevel:
-#         return f'Invalid level: {level}', 400
-
-#     return render_template('logs_template.html', logs=memory_handler.get_logs(level))
 
 @app.route('/logs/<level>/')
 def get_logs(level):
