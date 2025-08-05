@@ -7,10 +7,18 @@ import psutil
 import os
 import time
 
+# To recover on the pi:
+# ~/recover.sh
+# will load a fix from the repo, restart the server, and check the status of the process
+
+# To run locally:
+# python main.py
+
 # If we're running on the server, we're not debugging
-DEBUG = os.uname().nodename == "rockpi-4b"
+DEBUG = os.uname().nodename != "rockpi-4b"
 # This *doesn't* work, because we run the process as root
 # DEBUG = os.getlogin() != "rock"
+SERVICE_NAME = "rock-server"
 
 # Custom logging, since it's not super accessible using gunicorn
 log_stream = io.StringIO('Server started')
@@ -19,11 +27,9 @@ log = logging.getLogger("my_logger")
 log.setLevel(logging.INFO)
 log.addHandler(handler)
 # Format logs as HTML
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+formatter = logging.Formatter('%(asctime)s - %(levelname)s: %(message)s')
 handler.setFormatter(formatter)
 
-
-SERVICE_NAME = "rock-server"
 if not DEBUG:
     repo = git.Repo("/home/rock/rock-server")
     PYTHON_BINARY = "/home/rock/rock-server/bin/python"
@@ -69,7 +75,7 @@ def github_webhook():
 @app.route("/logs")
 def logs():
     """ Return the server logs """
-    return render_template("html_templates/logs_template.html", logs=log_stream.getvalue()), 200
+    return render_template("logs_template.html", logs=log_stream.getvalue()), 200
 
 @app.route("/info")
 def info():
