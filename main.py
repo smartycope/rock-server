@@ -18,6 +18,10 @@ handler = logging.StreamHandler(log_stream)
 log = logging.getLogger("my_logger")
 log.setLevel(logging.INFO)
 log.addHandler(handler)
+# Format logs as HTML
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+
 
 SERVICE_NAME = "rock-server"
 if not DEBUG:
@@ -65,7 +69,7 @@ def github_webhook():
 @app.route("/logs")
 def logs():
     """ Return the server logs """
-    return log_stream.getvalue(), 200
+    return render_template("html_templates/logs_template.html", logs=log_stream.getvalue()), 200
 
 @app.route("/info")
 def info():
