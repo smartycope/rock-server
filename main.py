@@ -65,25 +65,25 @@ def not_found(error):
     """ Return a 404 error page """
     return redirect(url_for('static', filename='error.html'))
 
+def restart_service():
+    time.sleep(0.1)
+    log.info("Service restarting")
+    if not DEBUG:
+        subprocess.run(["sudo", "systemctl", "restart", SERVICE_NAME])
+    else:
+        # simulate a SIGTERM
+        exit(15)
+
 @app.route("/restart/", methods=["POST"])
 def restart():
     """ Restart the server """
-    def restart_service():
-        time.sleep(0.1)
-        log.info("Service restarting")
-        if not DEBUG:
-            subprocess.run(["sudo", "systemctl", "restart", SERVICE_NAME])
-        else:
-            # simulate a SIGTERM
-            exit(15)
     try:
-        log.info("Restarting service...")
         # Start a new thread, have it restart the service after a short delay
         threading.Thread(target=restart_service).start()
-        return jsonify({"status": "restarted"}), 200
+        return {"status": "restarted"}, 200
     except subprocess.CalledProcessError as e:
         log.error("Failed to restart service: %s", e)
-        return jsonify({"error": str(e)}), 500
+        return {"error": str(e)}, 500
 
 @app.route("/github-webhook/", methods=["POST"])
 def github_webhook():
@@ -95,10 +95,14 @@ def github_webhook():
         origin.pull()
         repo.submodule_update(init=True, recursive=True)
         log.info("Pull successful")
+        threading.Thread(target=restart_service).start()
+    except subprocess.CalledProcessError as e:
+        log.error("Failed to restart service: %s", e)
+        return {"error": str(e)}, 500
     except Exception as e:
         log.error("Failed to pull from remote: %s", e)
-        return jsonify({"error": str(e)}), 500
-    return restart()
+        return {"error": str(e)}, 500
+    return {"status": "restarted"}, 200
 
 @app.route("/info/")
 def info():
