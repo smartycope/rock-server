@@ -58,6 +58,7 @@ def index():
     app.logger.debug("This is a debug log.")
     app.logger.info("This is an info log.")
     app.logger.warning("This is a warning log.")
+    app.logger.error("This is an error log.")
     return "Hello, world!"
 
 @app.errorhandler(404)
@@ -110,16 +111,14 @@ def info():
     proc = psutil.Process(os.getpid())
     start_time = proc.create_time()
     uptime_seconds = time.time() - start_time
-    return jsonify(
-        {
+    return {
             "status": "ok",
             "server_started": time.strftime("%m-%d-%Y %H:%M:%S", time.localtime(start_time)),
             "uptime_seconds": uptime_seconds,
             "uptime_human": time.strftime("%H:%M:%S", time.localtime(uptime_seconds)),
             "current_packages": subprocess.check_output([PYTHON_BINARY, "-m", "pip", "freeze"]).decode("utf-8").split("\n"),
             # "logs": log_stream.getvalue()
-        }
-    ), 200
+        }, 200
 
 @app.route("/install/<package>", methods=["POST"])
 def install_package(package):
@@ -130,8 +129,8 @@ def install_package(package):
         log.info("%s installed", package)
     except Exception as e:
         log.error("Failed to install %s: %s", package, e)
-        return jsonify({"error": str(e)}), 500
-    return jsonify({"status": "ok"}), 200
+        return {"error": str(e)}, 500
+    return {"status": "ok"}, 200
 
 @app.route("/docs")
 def docs():
