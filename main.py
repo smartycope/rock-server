@@ -74,7 +74,7 @@ def restart_service():
         # simulate a SIGTERM
         exit(15)
 
-@app.route("/restart/", methods=["POST"])
+@app.route("/restart", methods=["POST"])
 def restart():
     """ Restart the server """
     try:
@@ -85,7 +85,7 @@ def restart():
         log.error("Failed to restart service: %s", e)
         return {"error": str(e)}, 500
 
-@app.route("/github-webhook/", methods=["POST"])
+@app.route("/github-webhook", methods=["POST"])
 def github_webhook():
     """ Triggered by the github repo. Pulls the latest changes and restarts the server """
     log.info("Github change detected")
@@ -104,7 +104,7 @@ def github_webhook():
         return {"error": str(e)}, 500
     return {"status": "restarted"}, 200
 
-@app.route("/info/")
+@app.route("/info")
 def info():
     """ Return information about the server """
     proc = psutil.Process(os.getpid())
@@ -121,7 +121,7 @@ def info():
         }
     ), 200
 
-@app.route("/install/<package>/", methods=["POST"])
+@app.route("/install/<package>", methods=["POST"])
 def install_package(package):
     """ Install a package using pip """
     try:
@@ -133,7 +133,7 @@ def install_package(package):
         return jsonify({"error": str(e)}), 500
     return jsonify({"status": "ok"}), 200
 
-@app.route("/docs/")
+@app.route("/docs")
 def docs():
     """ Return the documentation """
     return redirect(url_for("static", filename="docs/index.html"))
