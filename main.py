@@ -30,7 +30,8 @@ class InMemoryHandler(logging.Handler):
         self.setLevel(logging.DEBUG)
 
     def emit(self, record: logging.LogRecord):
-        self.records.append(record)
+        with self.lock:
+            self.records.append(record)
 
     def get_logs(self, level: str) -> list[str]:
         with self.lock:
@@ -118,9 +119,9 @@ def info():
             "uptime_seconds": uptime_seconds,
             "uptime_human": time.strftime("%H:%M:%S", time.localtime(uptime_seconds)),
             "current_packages": subprocess.check_output([PYTHON_BINARY, "-m", "pip", "freeze"]).decode("utf-8").split("\n"),
-            "storage_available": psutil.disk_usage("/").free,
+            "storage_available": str(round(psutil.disk_usage("/").free / 1024 / 1024 / 1024, 2)) + " GB",
+            "storage_total": str(round(psutil.disk_usage("/").total / 1024 / 1024 / 1024, 2)) + " GB",
             "storage_percent": psutil.disk_usage("/").percent,
-            "storage_total": psutil.disk_usage("/").total,
             "pi_uptime_seconds": time.time() - psutil.boot_time(),
             "pi_uptime_human": time.strftime("%m-%d-%Y %H:%M:%S", time.localtime(time.time() - psutil.boot_time())),
         }, 200
