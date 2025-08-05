@@ -2,12 +2,13 @@ from flask import Flask, redirect, request, jsonify, render_template, url_for
 import subprocess
 import git
 import logging
-import io
 import psutil
 import os
 import time
 from pathlib import Path
-
+import threading
+from flask import has_request_context, request
+from collections import deque
 
 # If we're running on the server, we're not debugging
 DEBUG = os.uname().nodename != "rockpi-4b"
@@ -15,15 +16,34 @@ DEBUG = os.uname().nodename != "rockpi-4b"
 # DEBUG = os.getlogin() != "rock"
 SERVICE_NAME = "rock-server"
 
-# Custom logging, since it's not super accessible using gunicorn
-log_stream = io.StringIO('Server started')
-handler = logging.StreamHandler(log_stream)
-log = logging.getLogger("my_logger")
-log.setLevel(logging.INFO)
-log.addHandler(handler)
-# Format logs as HTML
-formatter = logging.Formatter('%(asctime)s - %(levelname)s: %(message)s')
-handler.setFormatter(formatter)
+
+app = Flask(__name__)
+# Set the logger to debug level because we're filtering later
+app.logger.setLevel(logging.DEBUG)
+log = app.logger
+
+class InMemoryHandler(logging.Handler):
+    """ Custom in-memory log handler with fixed size """
+    def __init__(self, formatter: logging.Formatter, capacity: int = 1000):
+        super().__init__()
+        self.records: deque[logging.LogRecord] = deque(maxlen=capacity)  # Keep last N records
+        self.setFormatter(formatter)
+        self.setLevel(logging.DEBUG)
+
+    def emit(self, record: logging.LogRecord):
+        self.records.append(record)
+
+    def get_logs(self, level: str) -> list[str]:
+        threshold = logging._nameToLevel[level]
+        return [
+            self.format(r)
+            for r in self.records
+            if r.levelno >= threshold
+        ]
+
+memory_handler = InMemoryHandler(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+app.logger.addHandler(memory_handler)
+
 
 if not DEBUG:
     repo = git.Repo("/home/rock/rock-server")
@@ -32,26 +52,44 @@ else:
     repo = git.Repo(".")
     PYTHON_BINARY = "python"
 
-app = Flask(__name__)
 
 @app.route("/")
 def index():
     log.info("Hello, world!")
+    app.logger.debug("This is a debug log.")
+    app.logger.info("This is an info log.")
+    app.logger.warning("This is a warning log.")
     return "Hello, world!"
 
-@app.route("/restart/", methods=["POST"])
+@app.errorhandler(404)
+def not_found(error):
+    """ Return a 404 error page """
+    return redirect(url_for('static', filename='error.html'))
+
+
 def restart_service():
+    time.sleep(0.1)
+    log.info("Service restarting")
+    if not DEBUG:
+        subprocess.run(["sudo", "systemctl", "restart", SERVICE_NAME])
+    else:
+        # simulate a SIGTERM
+        exit(15)
+
+@app.route("/restart/", methods=["POST"])
+def restart():
     """ Restart the server """
     # I've disabled error handling, because restarting this process will naturally
     # cause a SIGTERM (15) error. This works every time I try it, so I'm
     # calling it good
-    # try:
-    log.info("Restarting service...")
-    subprocess.run(["sudo", "systemctl", "restart", SERVICE_NAME], check=True)
-    log.info("Service restarted")
-    return jsonify({"status": "restarted"}), 200
-    # except subprocess.CalledProcessError as e:
-    #     return jsonify({"error": str(e)}), 500
+    try:
+        log.info("Restarting service...")
+        # Start a new thread, have it restart the service after a short delay
+        threading.Thread(target=restart_service).start()
+        return jsonify({"status": "restarted"}), 200
+    except subprocess.CalledProcessError as e:
+        log.error("Failed to restart service: %s", e)
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/github-webhook/", methods=["POST"])
 def github_webhook():
@@ -66,11 +104,6 @@ def github_webhook():
         log.error("Failed to pull from remote: %s", e)
         return jsonify({"error": str(e)}), 500
     return restart_service()
-
-@app.route("/logs/")
-def logs():
-    """ Return the server logs """
-    return render_template("logs_template.html", logs=log_stream.getvalue()), 200
 
 @app.route("/info/")
 def info():
@@ -107,10 +140,19 @@ def docs():
     """ Return the documentation """
     return redirect(url_for("static", filename="docs/index.html"))
 
+
+@app.route('/logs/<level>')
+def get_logs(level):
+    level = level.upper()
+    if level not in logging._nameToLevel:
+        return f'Invalid level: {level}', 400
+
+    return '<br/>'.join(memory_handler.get_logs(level))
+
 # Log all requests
 @app.before_request
 def log_request_info():
-    log.info("Request: %s %s", request.method, request.url)
+    log.debug("Request: %s %s", request.method, request.url)
 
 if __name__ == "__main__":
     log.info("Server started via main")
