@@ -159,6 +159,18 @@ def install_package(package):
         return {"error": str(e)}, 500
     return {"status": "ok"}, 200
 
+@app.route("/sex-dice/")
+def sex_dice():
+    """ Return the sex dice page """
+    return send_file('static/sex-dice.html')
+
+
+@app.route('/coffee/')
+def coffee():
+    """ Return a 418 I'm a teapot response """
+    return 'Error 418: I can\'t brew coffee, I\'m a teapot', 418
+
+
 @app.route("/docs/")
 def docs():
     """ Return the documentation """
@@ -186,11 +198,6 @@ def get_logs(level):
         lines.append("Log file not found.")
 
     return render_template('logs_template.html', logs=lines)
-
-@app.route("/sex-dice/")
-def sex_dice():
-    """ Return the sex dice page """
-    return send_file('static/sex-dice.html')
 
 @app.before_request
 def log_request_info():
