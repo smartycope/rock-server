@@ -7,6 +7,9 @@ import psutil
 import os
 import time
 
+# If we're running on the server, we're not debugging
+DEBUG = os.getlogin() != "rock"
+
 # Custom logging, since it's not super accessible using gunicorn
 log_stream = io.StringIO('Server started')
 handler = logging.StreamHandler(log_stream)
@@ -15,17 +18,23 @@ log.setLevel(logging.INFO)
 log.addHandler(handler)
 
 SERVICE_NAME = "rock-server"
-repo = git.Repo("/home/rock/rock-server")
-python_binary = "/home/rock/rock-server/bin/python"
+if not DEBUG:
+    repo = git.Repo("/home/rock/rock-server")
+    PYTHON_BINARY = "/home/rock/rock-server/bin/python"
+else:
+    repo = git.Repo(".")
+    PYTHON_BINARY = "python"
+
 app = Flask(__name__)
 
 @app.route("/")
-def hello():
+def index():
     log.info("Hello, world!")
     return "Hello, world!"
 
 @app.route("/restart", methods=["POST"])
 def restart_service():
+    """ Restart the server """
     # I've disabled error handling, because restarting this process will naturally
     # cause a SIGTERM (15) error. This works every time I try it, so I'm
     # calling it good
@@ -39,6 +48,7 @@ def restart_service():
 
 @app.route("/github-webhook", methods=["POST"])
 def github_webhook():
+    """ Triggered by the github repo. Pulls the latest changes and restarts the server """
     log.info("Github change detected")
     try:
         log.info("Pulling from remote...")
@@ -52,35 +62,42 @@ def github_webhook():
 
 @app.route("/logs")
 def logs():
-    return log_stream.getvalue()
+    """ Return the server logs """
+    return log_stream.getvalue(), 200
 
 @app.route("/info")
 def info():
+    """ Return information about the server """
     proc = psutil.Process(os.getpid())
     start_time = proc.create_time()
     uptime_seconds = time.time() - start_time
     return jsonify(
         {
             "status": "ok",
-            "server_started": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(start_time)),
-            "uptime": uptime_seconds,
-            "uptime_human": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(uptime_seconds)),
-            "current_packages": subprocess.check_output([python_binary, "-m", "pip", "freeze"]).decode("utf-8").split("\n"),
-            "logs": log_stream.getvalue()
+            "server_started": time.strftime("%m-%d-%Y %H:%M:%S", time.localtime(start_time)),
+            "uptime_seconds": uptime_seconds,
+            "uptime_human": time.strftime("%H:%M:%S", time.localtime(uptime_seconds)),
+            "current_packages": subprocess.check_output([PYTHON_BINARY, "-m", "pip", "freeze"]).decode("utf-8").split("\n"),
+            # "logs": log_stream.getvalue()
         }
     ), 200
 
 @app.route("/install/<package>", methods=["POST"])
 def install_package(package):
-    """ Install a package using pip based on the package name """
+    """ Install a package using pip """
     try:
         log.info("Installing %s...", package)
-        subprocess.run([python_binary, "-m", "pip", "install", package], check=True)
+        subprocess.run([PYTHON_BINARY, "-m", "pip", "install", package], check=True)
         log.info("%s installed", package)
     except Exception as e:
         log.error("Failed to install %s: %s", package, e)
         return jsonify({"error": str(e)}), 500
     return jsonify({"status": "ok"}), 200
+
+@app.route("/docs")
+def docs():
+    """ Return the documentation """
+    return render_template("index.html")
 
 # Log all requests
 @app.before_request
