@@ -117,7 +117,6 @@ def info():
             "uptime_seconds": uptime_seconds,
             "uptime_human": time.strftime("%H:%M:%S", time.localtime(uptime_seconds)),
             "current_packages": subprocess.check_output([PYTHON_BINARY, "-m", "pip", "freeze"]).decode("utf-8").split("\n"),
-            # "logs": log_stream.getvalue()
         }, 200
 
 @app.route("/install/<package>/", methods=["POST"])
