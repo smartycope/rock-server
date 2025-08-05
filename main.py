@@ -1,4 +1,4 @@
-from flask import Flask, redirect, request, jsonify, render_template, url_for
+from flask import Flask, redirect, request, jsonify, render_template, send_file, url_for
 import subprocess
 import git
 import logging
@@ -187,6 +187,10 @@ def get_logs(level):
 
     return render_template('logs_template.html', logs=lines)
 
+@app.route("/sex-dice/")
+def sex_dice():
+    """ Return the sex dice page """
+    return send_file('static/sex-dice.html')
 
 @app.before_request
 def log_request_info():
