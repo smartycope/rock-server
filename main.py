@@ -6,13 +6,8 @@ import io
 import psutil
 import os
 import time
+from pathlib import Path
 
-# To recover on the pi:
-# ~/recover.sh
-# will load a fix from the repo, restart the server, and check the status of the process
-
-# To run locally:
-# python main.py
 
 # If we're running on the server, we're not debugging
 DEBUG = os.uname().nodename != "rockpi-4b"
@@ -106,10 +101,11 @@ def install_package(package):
         return jsonify({"error": str(e)}), 500
     return jsonify({"status": "ok"}), 200
 
+# There's probably a better, more flasky way to do this
 @app.route("/docs")
 def docs():
     """ Return the documentation """
-    return render_template("index.html")
+    return Path("templates/docs/main.html").read_text(), 200
 
 # Log all requests
 @app.before_request
