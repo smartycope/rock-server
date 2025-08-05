@@ -1,7 +1,6 @@
 from flask import Flask, request, jsonify
 import subprocess
 import git
-import os
 import logging
 import io
 
