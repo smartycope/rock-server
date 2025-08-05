@@ -5,10 +5,11 @@
 </head>
 <body>
     <h1>Something went wrong</h1>
-    <p>Error 404: Page not found.</p>
-    <br/>
-    <p>Sorry, something went wrong. Please try again later.</p>
+    {% if error %}
+    <p>{{ error }}</p>
+    {% endif %}
     <br/>
     <p>Back to <a href="/">home</a></p>
+    <p>See <a href="/logs">logs</a> for more information</p>
 </body>
 </html>

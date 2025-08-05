@@ -64,7 +64,7 @@ def index():
 @app.errorhandler(404)
 def not_found(error):
     """ Return a 404 error page """
-    return redirect(url_for('static', filename='error.html'))
+    return render_template('error.html', error=error), 404
 
 def restart_service():
     time.sleep(0.1)
@@ -75,7 +75,7 @@ def restart_service():
         # simulate a SIGTERM
         exit(15)
 
-@app.route("/restart", methods=["POST"])
+@app.route("/restart/", methods=["POST"])
 def restart():
     """ Restart the server """
     try:
@@ -86,7 +86,7 @@ def restart():
         log.error("Failed to restart service: %s", e)
         return {"error": str(e)}, 500
 
-@app.route("/github-webhook", methods=["POST"])
+@app.route("/github-webhook/", methods=["POST"])
 def github_webhook():
     """ Triggered by the github repo. Pulls the latest changes and restarts the server """
     log.info("Github change detected")
@@ -105,7 +105,7 @@ def github_webhook():
         return {"error": str(e)}, 500
     return {"status": "restarted"}, 200
 
-@app.route("/info")
+@app.route("/info/")
 def info():
     """ Return information about the server """
     proc = psutil.Process(os.getpid())
@@ -120,7 +120,7 @@ def info():
             # "logs": log_stream.getvalue()
         }, 200
 
-@app.route("/install/<package>", methods=["POST"])
+@app.route("/install/<package>/", methods=["POST"])
 def install_package(package):
     """ Install a package using pip """
     try:
@@ -132,12 +132,12 @@ def install_package(package):
         return {"error": str(e)}, 500
     return {"status": "ok"}, 200
 
-@app.route("/docs")
+@app.route("/docs/")
 def docs():
     """ Return the documentation """
     return redirect(url_for("static", filename="docs/index.html"))
 
-@app.route('/logs/<level>')
+@app.route('/logs/<level>/')
 def get_logs(level):
     level = level.upper()
     if level not in logging._nameToLevel:
