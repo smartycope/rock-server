@@ -4,6 +4,8 @@
 </head>
 <body>
     <h1>Logs</h1>
-    {{ logs }}
+    {% for log in logs %}
+        {{ log }}<br/>
+    {% endfor %}
 </body>
 </html>

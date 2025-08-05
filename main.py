@@ -33,12 +33,13 @@ class InMemoryHandler(logging.Handler):
         self.records.append(record)
 
     def get_logs(self, level: str) -> list[str]:
-        threshold = logging._nameToLevel[level]
-        return [
-            self.format(r)
-            for r in self.records
-            if r.levelno >= threshold
-        ]
+        with self.lock:
+            threshold = logging._nameToLevel[level]
+            return [
+                self.format(r)
+                for r in self.records
+                if r.levelno >= threshold
+            ]
 
 memory_handler = InMemoryHandler(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
 app.logger.addHandler(memory_handler)
@@ -148,7 +149,7 @@ def get_logs(level):
     if level not in logging._nameToLevel:
         return f'Invalid level: {level}', 400
 
-    return render_template('logs_template.html', logs='<br/>'.join(memory_handler.get_logs(level)))
+    return render_template('logs_template.html', logs=memory_handler.get_logs(level))
 
 @app.before_request
 def log_request_info():
