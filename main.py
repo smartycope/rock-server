@@ -117,6 +117,11 @@ def info():
             "uptime_seconds": uptime_seconds,
             "uptime_human": time.strftime("%H:%M:%S", time.localtime(uptime_seconds)),
             "current_packages": subprocess.check_output([PYTHON_BINARY, "-m", "pip", "freeze"]).decode("utf-8").split("\n"),
+            "storage_available": psutil.disk_usage("/").free,
+            "storage_percent": psutil.disk_usage("/").percent,
+            "storage_total": psutil.disk_usage("/").total,
+            "pi_uptime_seconds": time.time() - psutil.boot_time(),
+            "pi_uptime_human": time.strftime("%m-%d-%Y %H:%M:%S", time.localtime(time.time() - psutil.boot_time())),
         }, 200
 
 @app.route("/install/<package>/", methods=["POST"])
@@ -138,11 +143,12 @@ def docs():
 
 @app.route('/logs/<level>/')
 def get_logs(level):
+    """ Return logs for a given level """
     level = level.upper()
     if level not in logging._nameToLevel:
         return f'Invalid level: {level}', 400
 
-    return '<br/>'.join(memory_handler.get_logs(level))
+    return render_template('logs_template.html', logs='<br/>'.join(memory_handler.get_logs(level)))
 
 @app.before_request
 def log_request_info():
