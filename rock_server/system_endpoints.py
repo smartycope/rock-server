@@ -144,6 +144,24 @@ def get_logs(level):
     elif request.method == "DELETE":
         return "Method not allowed", 405
 
+    # TODO: something like this probably
+    # journalctl -u rock-server.service -q -f
+    if level == "SYSTEM":
+        # Display the process logs for rock-server
+        lines = []
+        # try:
+        #     with open("/var/log/syslog", 'r') as f:
+        #         for line in f:
+        #             try:
+        #                 levelname = line.split(' - ')[1]
+        #                 if logging._nameToLevel.get(levelname, 100) >= threshold:
+        #                     lines.append(line.strip())
+        #             except Exception:
+        #                 continue  # skip malformed lines
+        # except FileNotFoundError:
+        #     lines.append("Log file not found.")
+        return render_template('logs_template.html', logs=reversed(lines))
+
     if level not in logging._nameToLevel:
         return f'Invalid level: {level}', 400
 

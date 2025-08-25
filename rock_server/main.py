@@ -32,29 +32,28 @@ file_handler.setLevel(logging.DEBUG)
 file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
 app.logger.addHandler(file_handler)
 
-# TODO: these 4 don't work
-@app.before_request
-def log_request_info():
-    """ Log all requests """
-    app.logger.debug("Request: %s %s", request.method, request.url)
-
-@app.after_request
-def log_response(response):
-    app.logger.debug("Response %s %s -> %s", request.method, request.url, response.status)
-    return response
-
-@app.errorhandler(Exception)
-def log_error(e):
-    app.logger.exception("Error handling request: %s %s %s", request.method, request.url, str(e))
-    return "Internal server error", 500
-
-@app.errorhandler(404)
-def log_404(e):
-    app.logger.warning("404 Not Found: %s %s", request.method, request.url)
-    return "Not found", 404
-
 
 with app.app_context():
+    @app.before_request
+    def log_request_info():
+        """ Log all requests """
+        app.logger.debug("Request: %s %s", request.method, request.url)
+
+    @app.after_request
+    def log_response(response):
+        app.logger.debug("Response %s %s -> %s", request.method, request.url, response.status)
+        return response
+
+    @app.errorhandler(Exception)
+    def log_error(e):
+        app.logger.exception("Error handling request: %s %s %s", request.method, request.url, str(e))
+        return "Internal server error", 500
+
+    @app.errorhandler(404)
+    def log_404(e):
+        app.logger.warning("404 Not Found: %s %s", request.method, request.url)
+        return "Not found", 404
+
     from rock_server.projects.irregular_reminders import bp as reminders_bp
     app.register_blueprint(reminders_bp, url_prefix="/irregular-reminders")
 

@@ -57,6 +57,10 @@ log = current_app.logger
 # , name="irregular-reminders"
 
 
+print('HERE !!!!!!!!!~!!!!!!!!!!!!!!!!')
+print(log)
+log.info("Hello, world! ------------------------------")
+
 
 
 # store tokens in memory (for demo) — in production use a DB
