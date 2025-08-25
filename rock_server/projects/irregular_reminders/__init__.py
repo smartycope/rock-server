@@ -78,24 +78,26 @@ def debug_send():
     title = data.get("title", "Hello")
     body = data.get("body", "This is a test")
     seconds = data.get("seconds", 10)
+    token = data.get("token")
 
-    messages = []
-    for token in expo_push_tokens:
-        messages.append({
+    if token:
+        message = {
             "to": token,
             "sound": "default",
             "title": title,
             "body": body,
             # Reply with the original response
             "data": data,
-        })
+        }
+    else:
+        return {"error": "no token"}, 400
 
     sleep(seconds)
 
     # Expo push API endpoint
     response = requests.post(
         "https://exp.host/--/api/v2/push/send",
-        json=messages,
+        json=message,
         headers={
             "Content-Type": "application/json",
             "Accept": "application/json"
@@ -103,7 +105,8 @@ def debug_send():
         timeout=5
     )
 
-    return response.json()
+    # return response.json()
+    return {"status": "ok", "response": response.json()}, 200
 
 
 # def send_reminder(token, reminder:Reminder):
