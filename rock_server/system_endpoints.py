@@ -154,7 +154,13 @@ def get_logs(level):
     except FileNotFoundError:
         lines.append("Log file not found.")
 
-    return render_template('logs_template.html', logs=lines)
+    return render_template('logs_template.html', logs=reversed(lines))
+
+@bp.route('/logs/clear/', methods=["DELETE"])
+def clear_logs():
+    with open(current_app.LOG_FILE, 'w') as f:
+        f.write("")
+    return "Logs cleared", 200
 
 @bp.before_request
 def log_request_info():
