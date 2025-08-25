@@ -5,6 +5,7 @@
 <body>
     <h1>Logs</h1>
     <h2>Newest first</h2>
+    <button onclick="window.location.href='/logs/clear/'">Clear Logs</button>
     {% for log in logs %}
         {{ log }}<br/>
     {% endfor %}

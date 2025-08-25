@@ -133,9 +133,17 @@ def logs():
     """ The default log level is INFO """
     return redirect(url_for(".get_logs", level='info'))
 
-@bp.route('/logs/<level>/')
+@bp.route('/logs/<level>/', methods=["GET", "DELETE"])
 def get_logs(level):
     level = level.upper()
+
+    if level == "CLEAR" and request.method == "DELETE":
+        with open(current_app.LOG_FILE, 'w') as f:
+            f.write("")
+        return "Logs cleared", 200
+    elif request.method == "DELETE":
+        return "Method not allowed", 405
+
     if level not in logging._nameToLevel:
         return f'Invalid level: {level}', 400
 
@@ -156,11 +164,7 @@ def get_logs(level):
 
     return render_template('logs_template.html', logs=reversed(lines))
 
-@bp.route('/logs/clear/', methods=["DELETE"])
-def clear_logs():
-    with open(current_app.LOG_FILE, 'w') as f:
-        f.write("")
-    return "Logs cleared", 200
+
 
 @bp.before_request
 def log_request_info():
