@@ -1,11 +1,11 @@
 <html>
 <head>
     <title>Logs</title>
-    <h2>Newest first</h2>
 </head>
 <body>
     <h1>Logs</h1>
-    {% for log in logs %}
+    <h2>Newest first</h2>
+    {% for log in reversed(logs) %}
         {{ log }}<br/>
     {% endfor %}
 </body>

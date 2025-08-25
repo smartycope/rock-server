@@ -154,7 +154,7 @@ def get_logs(level):
     except FileNotFoundError:
         lines.append("Log file not found.")
 
-    return render_template('logs_template.html', logs=reversed(lines))
+    return render_template('logs_template.html', logs=lines)
 
 @bp.before_request
 def log_request_info():
