@@ -5,7 +5,6 @@
 <body>
     <h1>Logs</h1>
     <h2>Newest first</h2>
-    {% comment %} make sure it runs a DELETE request {% endcomment %}
     <button onclick="fetch('/logs/clear/', { method: 'DELETE' }).then(() => location.reload())">Clear Logs</button>
     <br/>
 
