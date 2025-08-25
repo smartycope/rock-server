@@ -23,3 +23,8 @@ To update docs:
 ```bash
 pdoc --output-dir static/docs main.py
 ```
+
+To install a package:
+```bash
+curl -X POST api.smartycope.org/install/<package>
+```

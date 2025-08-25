@@ -92,7 +92,7 @@ def info():
             "last_commit_age": time.strftime("%H:%M:%S", time.localtime(time.time() - repo.head.commit.authored_date)),
         }, 200
 
-@bp.route("/install/<package>/", methods=["POST"])
+@bp.route("/install/<package>", methods=["POST"])
 def install_package(package):
     """ Install a package using pip """
     try:
