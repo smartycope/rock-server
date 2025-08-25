@@ -35,21 +35,21 @@ app.logger.addHandler(file_handler)
 @app.before_request
 def log_request_info():
     """ Log all requests """
-    log.debug("Request: %s %s", request.method, request.url)
+    app.logger.debug("Request: %s %s", request.method, request.url)
 
 @app.after_request
 def log_response(response):
-    log.debug("Response %s %s -> %s", request.method, request.url, response.status)
+    app.logger.debug("Response %s %s -> %s", request.method, request.url, response.status)
     return response
 
 @app.errorhandler(Exception)
 def log_error(e):
-    log.exception("Error handling request: %s %s", request.method, request.url)
+    app.logger.exception("Error handling request: %s %s", request.method, request.url)
     return "Internal server error", 500
 
 @app.errorhandler(404)
 def log_404(e):
-    log.warning("404 Not Found: %s %s", request.method, request.url)
+    app.logger.warning("404 Not Found: %s %s", request.method, request.url)
     return "Not found", 404
 
 
