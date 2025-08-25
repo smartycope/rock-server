@@ -74,6 +74,7 @@ def register():
 
 @bp.route("/debug", methods=["POST"])
 def debug_send():
+    log.info("Received reminders debug request")
     data = request.get_json()
     title = data.get("title", "Hello from the server! (default title)")
     body = data.get("body", "(default body from server)")
@@ -82,6 +83,7 @@ def debug_send():
     data.update({'from server': 'If youre seeing this, it worked!'})
 
     if token:
+        log.info("Sending notification to %s", token)
         message = {
             "to": token,
             "sound": "default",
@@ -91,6 +93,7 @@ def debug_send():
             "data": data,
         }
     else:
+        log.warning("No token provided")
         return {"error": "no token"}, 400
 
     sleep(seconds)
@@ -106,7 +109,7 @@ def debug_send():
         timeout=5
     )
 
-    # return response.json()
+    log.info("Response: %s", response.json())
     return {"status": "ok", "response": response.json()}, 200
 
 
