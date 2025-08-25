@@ -1,6 +1,6 @@
 from hmac import HMAC, compare_digest
-import firebase_admin
-from firebase_admin import credentials, messaging
+# import firebase_admin
+# from firebase_admin import credentials, messaging
 
 from hashlib import sha256
 from time import time
@@ -51,8 +51,9 @@ import requests
 bp = Blueprint("non_standard_reminders", __name__)
 
 log = current_app.logger
-cred = credentials.Certificate("./projects/non_standard_reminders/irregular-reminders-firebase-adminsdk-fbsvc-04f85b69cf.json")
-firebase_admin.initialize_app(cred)
+# For now?
+# cred = credentials.Certificate("./projects/non_standard_reminders/irregular-reminders-firebase-adminsdk-fbsvc-04f85b69cf.json")
+# firebase_admin.initialize_app(cred)
 # , name="irregular-reminders"
 
 
