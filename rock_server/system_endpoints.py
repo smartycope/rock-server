@@ -164,9 +164,3 @@ def get_logs(level):
 
     return render_template('logs_template.html', logs=reversed(lines))
 
-
-
-@bp.before_request
-def log_request_info():
-    """ Log all requests """
-    log.debug("Request: %s %s", request.method, request.url)

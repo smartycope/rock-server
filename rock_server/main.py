@@ -3,7 +3,7 @@ import os
 import logging
 from logging.handlers import RotatingFileHandler
 from flask import Flask,  request, jsonify
-import sqlite3
+# import sqlite3
 
 app = Flask(__name__)
 # app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///apikeys.db"
@@ -31,6 +31,27 @@ file_handler = RotatingFileHandler(app.LOG_FILE, maxBytes=1024*1024, backupCount
 file_handler.setLevel(logging.DEBUG)
 file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
 app.logger.addHandler(file_handler)
+
+@app.before_request
+def log_request_info():
+    """ Log all requests """
+    log.debug("Request: %s %s", request.method, request.url)
+
+@app.after_request
+def log_response(response):
+    log.debug("Response %s %s -> %s", request.method, request.url, response.status)
+    return response
+
+@app.errorhandler(Exception)
+def log_error(e):
+    log.exception("Error handling request: %s %s", request.method, request.url)
+    return "Internal server error", 500
+
+@app.errorhandler(404)
+def log_404(e):
+    log.warning("404 Not Found: %s %s", request.method, request.url)
+    return "Not found", 404
+
 
 with app.app_context():
     from rock_server.projects.irregular_reminders import bp as reminders_bp
