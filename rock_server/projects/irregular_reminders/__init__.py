@@ -79,6 +79,7 @@ def debug_send():
     body = data.get("body", "This is a test")
     seconds = data.get("seconds", 10)
     token = data.get("token")
+    data.update({'from server': 'If youre seeing this, it worked!'})
 
     if token:
         message = {
