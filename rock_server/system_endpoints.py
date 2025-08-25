@@ -30,20 +30,15 @@ def index():
     log.error("This is an error log.")
     return "Hello, world!"
 
-@bp.errorhandler(404)
-def not_found(error):
-    """ Return a 404 error page """
-    return render_template('error.html', error=error), 404
-
 def restart_service():
+    """ Restart the service """
     time.sleep(0.1)
     log.info("Service restarting")
-    if not current_app.DEBUG:
-        # We don't need to check here, since this process will immediately be terminated as soon as it runs
-        subprocess.run(["sudo", "systemctl", "restart", SERVICE_NAME])
-    else:
-        # simulate a SIGTERM
-        exit(15)
+    # We don't have access to current_app in a seperate thread.
+    # if not current_app.DEBUG:
+    subprocess.run(["sudo", "systemctl", "restart", SERVICE_NAME])
+    # simulate a SIGTERM if that didn't already
+    exit(15)
 
 @bp.route("/restart/", methods=["POST"])
 def restart():

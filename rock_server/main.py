@@ -2,7 +2,7 @@ from flask import Flask
 import os
 import logging
 from logging.handlers import RotatingFileHandler
-from flask import Flask,  request, jsonify
+from flask import Flask,  request, jsonify, render_template
 # import sqlite3
 
 app = Flask(__name__)
@@ -52,7 +52,8 @@ with app.app_context():
     @app.errorhandler(404)
     def log_404(e):
         app.logger.warning("404 Not Found: %s %s", request.method, request.url)
-        return "Not found", 404
+        return render_template('error.html', error=e), 404
+
 
     from rock_server.projects.irregular_reminders import bp as reminders_bp
     app.register_blueprint(reminders_bp, url_prefix="/irregular-reminders")
