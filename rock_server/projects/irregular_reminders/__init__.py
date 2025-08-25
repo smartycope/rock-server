@@ -68,13 +68,14 @@ def register():
     token = data.get("token")
     if token:
         expo_push_tokens.add(token)
-        return {"status": "ok", "stored": token}
+        return {"status": "ok", "stored": token}, 200
     return {"error": "no token"}, 400
 
 
 @bp.route("/debug", methods=["POST"])
 def debug_send():
     log.info("Received reminders debug request")
+    log.warning('SHOW THIS DANG IT')
     data = request.get_json()
     title = data.get("title", "Hello from the server! (default title)")
     body = data.get("body", "(default body from server)")

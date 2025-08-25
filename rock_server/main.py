@@ -32,6 +32,7 @@ file_handler.setLevel(logging.DEBUG)
 file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
 app.logger.addHandler(file_handler)
 
+# TODO: these 4 don't work
 @app.before_request
 def log_request_info():
     """ Log all requests """
@@ -44,7 +45,7 @@ def log_response(response):
 
 @app.errorhandler(Exception)
 def log_error(e):
-    app.logger.exception("Error handling request: %s %s", request.method, request.url)
+    app.logger.exception("Error handling request: %s %s %s", request.method, request.url, str(e))
     return "Internal server error", 500
 
 @app.errorhandler(404)
