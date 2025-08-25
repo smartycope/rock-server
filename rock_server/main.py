@@ -33,7 +33,7 @@ file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(mes
 app.logger.addHandler(file_handler)
 
 with app.app_context():
-    from .projects.irregular_reminders import bp as reminders_bp
+    from rock_server.projects.irregular_reminders import bp as reminders_bp
     app.register_blueprint(reminders_bp, url_prefix="/irregular-reminders")
 
     # Create a test key if none exists
@@ -49,7 +49,7 @@ with app.app_context():
 
     # print("Test API key:", test_key)
 
-    from .system_endpoints import bp as system_endpoints_bp
+    from rock_server.system_endpoints import bp as system_endpoints_bp
     app.register_blueprint(system_endpoints_bp)
 
 

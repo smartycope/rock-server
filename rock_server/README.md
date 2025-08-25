@@ -10,7 +10,7 @@ will load a fix from the repo, restart the server, and check the status of the p
 
 To run locally:
 ```bash
-flask --app main run --debug
+flask --app rock_server/main run --debug
 ```
 
 or

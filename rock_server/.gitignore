@@ -206,3 +206,9 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+
+/rock_server/app.log
+app.log
+*.pyc
+irregular-reminders-firebase-adminsdk-*.json
