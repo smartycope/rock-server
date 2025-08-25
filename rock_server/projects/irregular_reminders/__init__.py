@@ -75,8 +75,8 @@ def register():
 @bp.route("/debug", methods=["POST"])
 def debug_send():
     data = request.get_json()
-    title = data.get("title", "Hello")
-    body = data.get("body", "This is a test")
+    title = data.get("title", "Hello from the server! (default title)")
+    body = data.get("body", "(default body from server)")
     seconds = data.get("seconds", 10)
     token = data.get("token")
     data.update({'from server': 'If youre seeing this, it worked!'})
@@ -85,8 +85,8 @@ def debug_send():
         message = {
             "to": token,
             "sound": "default",
-            "title": title,
-            "body": body,
+            "title": title + " (non-default from server)",
+            "body": body + " (non-default from server)",
             # Reply with the original response
             "data": data,
         }
