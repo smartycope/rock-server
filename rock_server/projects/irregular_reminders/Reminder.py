@@ -16,8 +16,7 @@ class Reminder:
     """ A complex, non-standard reminder with many parameters
         Does not trigger itself.
     """
-    __version__ = 2
-    __last_modified_by__ = "single file"
+    __version__ = 3
 
     @enum.unique
     class Distribution(Enum):
@@ -146,29 +145,26 @@ class Reminder:
         }
 
     @staticmethod
-    def deserialize(data):
+    def deserialize(data:dict):
         # this is the only currently supported version
-        if data['version'] != 1:
+        if data.pop('version') != 1:
             raise ValueError("Invalid version")
-        rtn = Reminder(
-            title=data["title"],
-            message=data["message"],
-            trigger_work_hours=data["trigger_work_hours"],
-            trigger_min_time=data["trigger_min_time"],
-            trigger_max_time=data["trigger_max_time"],
-            trigger_dist=data["trigger_dist"],
-            trigger_dist_params=data["trigger_dist_params"],
-            trigger_work_days=data["trigger_work_days"],
-            repeat=data["repeat"],
-            spacing_min=data["spacing_min"],
-            spacing_max=data["spacing_max"],
-            spacing_dist=data["spacing_dist"],
-            spacing_dist_params=data["spacing_dist_params"],
-            id=data["id"],
-        )
-        rtn.alive = data['alive']
-        rtn.next_trigger_time = data["next_trigger_time"]
-        rtn.last_trigger_time = data["last_trigger_time"]
+
+        alive = True
+        next_trigger_time = None
+        last_trigger_time = None
+        if 'alive' in data:
+            alive = data.pop('alive')
+        if 'next_trigger_time' in data:
+            next_trigger_time = data.pop('next_trigger_time')
+        if 'last_trigger_time' in data:
+            last_trigger_time = data.pop('last_trigger_time')
+
+        rtn = Reminder(**data)
+        rtn.alive = alive
+        rtn.next_trigger_time = next_trigger_time
+        rtn.last_trigger_time = last_trigger_time
+
         rtn.validate_params()
         return rtn
 

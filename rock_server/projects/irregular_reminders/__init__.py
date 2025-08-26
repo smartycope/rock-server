@@ -31,10 +31,6 @@ with con:
 bp = Blueprint("non_standard_reminders", __name__)
 
 log = current_app.logger
-# For now?
-# cred = credentials.Certificate("./projects/non_standard_reminders/irregular-reminders-firebase-adminsdk-fbsvc-04f85b69cf.json")
-# firebase_admin.initialize_app(cred)
-# , name="irregular-reminders"
 
 def validate_json(schema):
     def decorator(f):
@@ -61,8 +57,8 @@ class RegisterDevice(BaseModel):
     app_version: str
     device_id: str
 
-@validate_json(RegisterDevice)
 @bp.route("/devices/register", methods=["POST"])
+@validate_json(RegisterDevice)
 def register(data: RegisterDevice):
     """ Register is a misnomer: it registers first, every time after that it's an update """
     # If it's already registered, update the token
@@ -81,8 +77,8 @@ class ScheduleReminder(BaseModel):
     device_id: str
     seconds: int
 
-@validate_json(ScheduleReminder)
 @bp.route("/schedule", methods=["POST"])
+@validate_json(ScheduleReminder)
 def schedule(data: ScheduleReminder):
     log.debug("Received reminders schedule request")
     # reminder = data.reminder
