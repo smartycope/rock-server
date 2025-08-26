@@ -57,6 +57,7 @@ class RegisterDevice(BaseModel):
     app_version: str
     device_id: str
 
+# The order of the decorators is important
 @bp.route("/devices/register", methods=["POST"])
 @validate_json(RegisterDevice)
 def register(data: RegisterDevice):
@@ -85,14 +86,16 @@ def schedule(data: ScheduleReminder):
     # reminder.add_to_db(con)
 
     try:
-        with con.cursor() as cur:
-            token = cur.execute(
-                "SELECT token FROM devices WHERE device_id = ?",
-                (data.device_id,)
-            ).fetchone()[0]
+        token = con.execute(
+            "SELECT token FROM devices WHERE device_id = ?",
+            (data.device_id,)
+        ).fetchone()[0]
     except IndexError:
         log.error("Invalid device_id")
         return {"error": "Invalid device_id"}, 400
+    except Exception as e:
+        log.error("Failed to set token: %s", e)
+        return {"error": str(e)}, 500
 
     log.debug("Sending notification to %s", token)
 
