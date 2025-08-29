@@ -7,168 +7,228 @@ import sqlite3
 from enum import Enum
 import random
 import enum
-from typing import Literal
+from typing import Literal, ClassVar
 import uuid
+from pydantic import field_validator, model_validator, BaseModel
+import re
+
+# Client reminders look like this:
+"""
+{
+    id: "uuid",
+    version: 1,
+    title: "Title",
+    message: "Message",
+    alive: true,
+    work_hours: ["00:00", "23:59"], <-- TODO: not sure
+    work_days: [True, True, True, True, True, True, True],
+    min_time: "2025-08-26T12:27:56", <-- TODO: not sure
+    max_time: "2025-08-26T12:27:56",
+    dist: "uniform",
+    dist_params: {"mean": "1s 1m 1h 1d", "std": "1s 1m 1h 1d"}, # Mean is a time delta, because it's reusable for repeating
+    repeat: true,
+    spacing_min: "1s 1m 1h 1d",
+    spacing_max: "1s 1m 1h 1d"
+}
+"""
 
 
-
-class Reminder:
+class Reminder(BaseModel):
     """ A complex, non-standard reminder with many parameters
         Does not trigger itself.
     """
-    __version__ = 3
+    # This is the code version of this class
+    __version__ = 4
 
     @enum.unique
     class Distribution(Enum):
-        UNIFORM = random.uniform
-        NORMAL = random.normalvariate
-        EXPONENTIAL = random.expovariate
+        UNIFORM = "uniform"
+        NORMAL = "normal"
+        EXPONENTIAL = "exponential"
 
-    def __init__(
-        self,
-        title,
-        message,
-        trigger_work_hours: tuple[time, time] | None = None,
-        trigger_work_days: list[int] = [0, 1, 2, 3, 4, 5, 6],
-        trigger_min_time: datetime | None = None,
-        trigger_max_time: datetime | None = None,
-        trigger_dist: Distribution = Distribution.UNIFORM,
-        trigger_dist_params: dict = {},
-        repeat: bool = False,
-        spacing_min: timedelta | None = timedelta(seconds=1),
-        spacing_max: timedelta | None = None,
-        spacing_dist: Distribution | None = Distribution.UNIFORM,
-        spacing_dist_params: dict | None = {},
-        id=None,
-    ):
+    # This is the version of the reminder
+    version: int
+    id: uuid.UUID
+    device_id: str
+    title: str
+    message: str
+    # period of the day when the alarm is allowed to trigger
+    work_hours: tuple[time, time] | None = None
+    # day of the week it's allowed to go off (Monday is 0, Sunday is 6 (to be compliant with datetime.weekday()))
+    work_days: list[bool] = [True] * 7
+    # min/max timedelta from now of the window when it should go off
+    min_time: datetime | None = None
+    max_time: datetime | None = None
+    # statistical distribution describing when within that window it should go off
+    dist: Distribution = Distribution.UNIFORM
+    dist_params: dict = {}
+    # if it should go off repeatedly or not
+    repeat: bool = False
+    # min/max amount of time it should wait before going off again
+    spacing_min: timedelta | None = timedelta(seconds=1)
+    spacing_max: timedelta | None = None
+    # whether it's alive or not - None means it's not initialized, and gets set in __init__
+    alive: bool | None = None
+
+    # Really, these are just members, not fields, but whatever
+    # the last time it went off - None for hasn't yet
+    last_trigger_time: datetime | None = None
+    # This gets calcuated immediately in __init__
+    next_trigger_time: datetime | None = None
+
+
+    # Class variables
+    timedelta_regex: ClassVar = re.compile(r'(?P<num>\d+)(?P<key>(?:mo|[ymhds]))(?:\s+)?')
+    # If we're off by this much, we'll just trigger it anyway
+    allowed_resolution_sec: ClassVar = 5
+    dist_map: ClassVar = {
+        Distribution.UNIFORM: random.uniform,
+        Distribution.NORMAL: random.normalvariate,
+        Distribution.EXPONENTIAL: random.expovariate,
+    }
+
+    def __init__(self, *args, **kwargs):
         """
         Initialize a new reminder
         To initialize an existing reminder, use Reminder.deserialize()
 
-        If trigger_dist is UNIFORM, trigger_dist_params are auto-set to a = trigger_min_time and b = trigger_max_time.
-        Any given trigger_dist_params will be ignored, and trigger_min_time and trigger_max_time must be provided.
+        Not to be instantiated directly - use Reminder.from_db() or Reminder.from_client()
 
-        Otherwise, trigger_dist/_params behave as expected, but are optionally bounded by
-        trigger_min_time and trigger_max_time.
+        If dist is UNIFORM, dist_params are auto-set to a = min_time and b = max_time.
+        Any given dist_params will be ignored, and min_time and max_time must be provided.
+
+        Otherwise, dist/_params behave as expected, but are optionally bounded by
+        min_time and max_time.
 
         Same goes for spacing_dist/_params and spacing_min and spacing_max.
 
         NORMAL takes mean (datetime) and std (float) as parameters.
         EXPONENTIAL takes mean (timedelta) as a parameter (lambda = 1/mean, for example,
-        wait at least trigger_min_time, and then wait on average mean amount of time before going off)
-
+        wait at least min_time, and then wait on average mean amount of time before going off)
         """
-        self.title = title
-        self.message = message
-        self.id = uuid.uuid4() if id is None else id
-        self.alive = trigger_max_time is None or trigger_max_time > datetime.now()
-        # the last time it went off - None for hasn't yet
-        self.last_trigger_time: datetime | None = None
+        super().__init__(*args, **kwargs)
+        if self.alive is None:
+            self.alive = self.max_time is None or self.max_time > datetime.now()
 
-        # Parameters
-        # period of the day when the alarm is allowed to trigger
-        self.trigger_work_hours: tuple[time, time] | None = trigger_work_hours
-        # day of the week it's allowed to go off (Monday is 0, Sunday is 6 (to be compliant with datetime.weekday()))
-        self.trigger_work_days: list[int] = trigger_work_days
-        # min/max timedelta from now of the window when it should go off
-        self.trigger_min_time: datetime | None = trigger_min_time
-        self.trigger_max_time: datetime | None = trigger_max_time
-        # statistical distrobution describing when within that window it should go off
-        self.trigger_dist: Reminder.Distribution = trigger_dist
-        self.trigger_dist_params: dict = trigger_dist_params
-        # if it should go off repeatedly or not
-        self.repeat: bool = repeat
+        self.next_trigger_time = self._sample_trigger_time()
 
-        # min/max amount of time it should wait before going off again
-        self.spacing_min: timedelta | None = spacing_min if self.repeat else None
-        self.spacing_max: timedelta | None = spacing_max if self.repeat else None
 
-        # statistical distrobution describing when within that window it should go off
-        self.spacing_dist: Reminder.Distribution | None = spacing_dist if self.repeat else None
-        self.spacing_dist_params: dict | None = (
-            spacing_dist_params if self.repeat else None
-        )
+    @field_validator("spacing_min", "spacing_max", mode="before")
+    @classmethod
+    def validate_spacing(cls, v):
+        return cls.cast_timedelta(v)
 
-        self.validate_params()
-        # Deterministically sample the next trigger time
-        self.next_trigger_time: datetime | None = self.sample_trigger_time(trigger=True)
+    @staticmethod
+    def cast_timedelta(v):
+        """
+        Thank you ezregex.org
+        key = either('mo', anyof('ymdhs'))
+        pattern = group(number, name='num') + group(key, name='key') + ow
+        """
+        try:
+            # Remove any whitespace
+            trimmed = re.sub(r'\s+', '', v)
+            matches = Reminder.timedelta_regex.finditer(trimmed)
+            # An empty string is invalid
+            if v == "":
+                raise ValueError("Invalid timedelta format (empty string)")
+            # If there's no matches
+            if not matches:
+                raise ValueError("Invalid timedelta format (no matches)")
 
+            prev_end = 0
+            total = timedelta()
+            for m in matches:
+                num = int(m['num'])
+                key = m['key']
+
+                # If there's characters that arent in any of the matches (after removing whitespace)
+                # Or if there's overlapping matches (!= instead of <)
+                if m.start() != prev_end:
+                    raise ValueError("Invalid timedelta format (overlapping or non-contiguous matches)")
+                prev_end = m.end()
+
+                match key:
+                    case 'mo': total += timedelta(days=num * 30)
+                    case 'y':  total += timedelta(days=num * 365)
+                    case 'd':  total += timedelta(days=num)
+                    case 'h':  total += timedelta(hours=num)
+                    case 'm':  total += timedelta(minutes=num)
+                    case 's':  total += timedelta(seconds=num)
+
+            if prev_end != len(trimmed):
+                raise ValueError("Invalid timedelta format (trailing characters)")
+
+        except ValueError as e:
+            raise e
+        except Exception as e:
+            raise ValueError("Invalid timedelta format (error parsing)") from e
+
+        return total
+
+    @model_validator(mode="after")
     def validate_params(self):
-        if self.trigger_dist == Reminder.Distribution.UNIFORM and (self.trigger_min_time is None or self.trigger_max_time is None):
-            raise ValueError("trigger_min_time and trigger_max_time must be provided for UNIFORM distribution")
-        if self.trigger_dist == Reminder.Distribution.NORMAL and ('mean' not in self.trigger_dist_params or 'std' not in self.trigger_dist_params):
+        if self.dist == Reminder.Distribution.UNIFORM and (self.min_time is None or self.max_time is None):
+            raise ValueError("min_time and max_time must be provided for UNIFORM distribution")
+        if self.dist == Reminder.Distribution.UNIFORM and self.dist_params:
+            raise ValueError("dist_params must be empty for UNIFORM distribution. Specify min_time and max_time instead.")
+        if self.dist == Reminder.Distribution.NORMAL and self.dist_params.keys() != {'mean', 'std'}:
             raise ValueError("mean and std must be provided for NORMAL distribution")
-        if self.trigger_dist == Reminder.Distribution.EXPONENTIAL and 'mean' not in self.trigger_dist_params:
+        if self.dist == Reminder.Distribution.EXPONENTIAL and self.dist_params.keys() != {'mean'}:
             raise ValueError("mean must be provided for EXPONENTIAL distribution")
-        if not len(self.trigger_work_days):
-            raise ValueError("trigger_work_days must not be empty")
-        for day in self.trigger_work_days:
-            if day < 0 or day > 6:
-                raise ValueError("trigger_work_days must be between 0 and 6")
-        if self.trigger_work_hours and (self.trigger_work_hours[0] > self.trigger_work_hours[1]):
-            raise ValueError("trigger_work_hours must be in order")
-        if self.trigger_min_time and self.trigger_max_time and self.trigger_min_time > self.trigger_max_time:
-            raise ValueError("trigger_min_time must be before trigger_max_time")
+        if not len(self.work_days):
+            raise ValueError("work_days must not be empty")
+        if self.work_hours and (self.work_hours[0] > self.work_hours[1]):
+            raise ValueError("work_hours must be in order")
+        if self.min_time and self.max_time and self.min_time > self.max_time:
+            raise ValueError("min_time must be before max_time")
         if self.spacing_min and self.spacing_max and self.spacing_min > self.spacing_max:
             raise ValueError("spacing_min must be before spacing_max")
-        if self.spacing_dist == Reminder.Distribution.UNIFORM and (self.spacing_min is None or self.spacing_max is None):
-            raise ValueError("spacing_min and spacing_max must be provided for UNIFORM distribution")
-        try:
-            if self.spacing_dist == Reminder.Distribution.NORMAL and ('mean' not in self.spacing_dist_params or 'std' not in self.spacing_dist_params):
-                raise ValueError("mean and std must be provided for NORMAL distribution")
-            if self.spacing_dist == Reminder.Distribution.EXPONENTIAL and 'mean' not in self.spacing_dist_params:
-                raise ValueError("mean must be provided for EXPONENTIAL distribution")
-        except TypeError as e:
-            raise ValueError("Please provide valid spacing_dist_params for spacing_dist") from e
+
+        # Validate & cast dist_params
+        if self.dist != Reminder.Distribution.UNIFORM:
+            self.dist_params['mean'] = self.cast_timedelta(self.dist_params['mean'])
+        if self.dist == Reminder.Distribution.NORMAL:
+            self.dist_params['std'] = self.cast_timedelta(self.dist_params['std'])
+
+        return self
 
     def serialize(self):
+        """ Serialize the reminder to a dictionary """
         return {
+            "id": self.id,
+            "device_id": self.device_id,
             # Simply incrementally versioned. This is different from the file version
             "version": 1,
             "title": self.title,
             "message": self.message,
-            "trigger_work_hours": self.trigger_work_hours,
-            "trigger_min_time": self.trigger_min_time,
-            "trigger_max_time": self.trigger_max_time,
-            "trigger_dist": self.trigger_dist,
-            "trigger_dist_params": self.trigger_dist_params,
-            "trigger_work_days": self.trigger_work_days,
+            "work_hours": self.work_hours,
+            "min_time": self.min_time,
+            "max_time": self.max_time,
+            "dist": self.dist,
+            "dist_params": self.dist_params,
+            "work_days": self.work_days,
             "repeat": self.repeat,
             "spacing_min": self.spacing_min,
             "spacing_max": self.spacing_max,
-            "spacing_dist": self.spacing_dist,
-            "spacing_dist_params": self.spacing_dist_params,
-            "id": self.id,
             "next_trigger_time": self.next_trigger_time,
             "last_trigger_time": self.last_trigger_time,
             "alive": self.alive,
         }
 
     @staticmethod
-    def deserialize(data:dict):
-        # this is the only currently supported version
-        if data.pop('version') != 1:
-            raise ValueError("Invalid version")
+    def from_db(row):
+        """ Deserialize from a database row """
+        # I'm pretty sure this won't work
+        print("I'm pretty sure this won't work")
+        return Reminder(**row)
 
-        alive = True
-        next_trigger_time = None
-        last_trigger_time = None
-        if 'alive' in data:
-            alive = data.pop('alive')
-        if 'next_trigger_time' in data:
-            next_trigger_time = data.pop('next_trigger_time')
-        if 'last_trigger_time' in data:
-            last_trigger_time = data.pop('last_trigger_time')
+    # @staticmethod
+    # def from_client(**data):
+    #     """ Validate and deserialize from a client request. This will handle validation and casting """
+    #     return Reminder(**data)
 
-        rtn = Reminder(**data)
-        rtn.alive = alive
-        rtn.next_trigger_time = next_trigger_time
-        rtn.last_trigger_time = last_trigger_time
-
-        rtn.validate_params()
-        return rtn
-
-    def _trigger(self):
+    def _trigger(self, conn:sqlite3.Connection):
         """
         Triggers the reminder. Doesn't actually do anything, except update the internal state.
         returns True if successful
@@ -180,27 +240,34 @@ class Reminder:
         if not self.repeat:
             self.alive = False
         else:
-            self.next_trigger_time = self.sample_trigger_time(trigger=False)
+            self.next_trigger_time = self._sample_trigger_time()
+
+        conn.execute(
+            "UPDATE reminders SET last_trigger_time = ?, next_trigger_time = ?, alive = ? WHERE id = ?",
+            (self.last_trigger_time, self.next_trigger_time, self.alive, self.id)
+        )
+        conn.commit()
         return True
 
     def can_trigger(self, now: datetime = None):
         if now is None:
             now = datetime.now()
+
         # trigger_work_hours
-        if self.trigger_work_hours and not (
-            self.trigger_work_hours[0] <= now.time() <= self.trigger_work_hours[1]
+        if self.work_hours and not (
+            self.work_hours[0] <= now.time() <= self.work_hours[1]
         ):
             return False
 
         # trigger_work_days
-        if self.trigger_work_days and now.weekday() not in self.trigger_work_days:
+        if self.work_days and not self.work_days[now.weekday()]:
             return False
 
         # trigger_min_time/max
-        if self.trigger_min_time and now < self.trigger_min_time:
+        if self.min_time and now < self.min_time:
             return False
         # This should never happen, but we still want to check it
-        if self.trigger_max_time and now > self.trigger_max_time:
+        if self.max_time and now > self.max_time:
             return False
 
         # spacing_min/max
@@ -210,7 +277,7 @@ class Reminder:
         if self.spacing_max and now > self.spacing_max:
             return False
 
-        return True
+        return self.alive
 
     def next_allowed_time(self, now: datetime = None) -> datetime | None:
         """
@@ -225,9 +292,9 @@ class Reminder:
         else:
             next_time = now
             # Ensure it's within the trigger window
-            if self.trigger_min_time and next_time < self.trigger_min_time:
-                next_time = self.trigger_min_time
-            if self.trigger_max_time and next_time >= self.trigger_max_time:
+            if self.min_time and next_time < self.min_time:
+                next_time = self.min_time
+            if self.max_time and next_time >= self.max_time:
                 return
 
             # Ensure it's within the spacing window
@@ -238,32 +305,32 @@ class Reminder:
                     return
 
             # If it's not a work day, we need to wait until the next work day
-            if ((self.trigger_work_days and next_time.weekday() not in self.trigger_work_days) or
+            if ((self.work_days and not self.work_days[next_time.weekday()]) or
                 # Or, if it is a work day, but work hours have already been past, we still need to wait until the next work day
-                (self.trigger_work_hours and next_time.time() >= self.trigger_work_hours[1])):
+                (self.work_hours and next_time.time() >= self.work_hours[1])):
                 # Reset the hour to the start of the next day
                 next_time = (next_time + timedelta(days=1)).replace(
                     hour=0, minute=0, second=0, microsecond=0
                 )
                 # Increment the day until it's a work day
-                while next_time.weekday() not in self.trigger_work_days:
+                while not self.work_days[next_time.weekday()]:
                     next_time += timedelta(days=1)
 
             # it's now a work day, but work hours haven't started yet
-            if self.trigger_work_hours and next_time.time() < self.trigger_work_hours[0]:
+            if self.work_hours and next_time.time() < self.work_hours[0]:
                 next_time = next_time.replace(
-                    hour=self.trigger_work_hours[0].hour,
-                    minute=self.trigger_work_hours[0].minute,
+                    hour=self.work_hours[0].hour,
+                    minute=self.work_hours[0].minute,
                     second=0,
                     microsecond=0,
                 )
 
-            if next_time > self.trigger_max_time or (self.repeat and self.last_trigger_time and next_time > self.spacing_max + self.last_trigger_time):
+            if next_time > self.max_time or (self.repeat and self.last_trigger_time and next_time > self.spacing_max + self.last_trigger_time):
                 return
 
             return next_time
 
-    def sample_trigger_time(self, trigger=True, adj:Literal['next', 'resample']='next') -> datetime:
+    def _sample_trigger_time(self, adj:Literal['next', 'resample']='next') -> datetime:
         """
         Generates the next time this reminder will go off
 
@@ -273,24 +340,20 @@ class Reminder:
         Note: if the parameters are particularly poorly chosen (i.e. the trigger window is very small,
             and the mean of a distribution is very close to or outside of the window),
             this function may take a very long time to return
-        """
-        if trigger:
-            dist = self.trigger_dist
-            params = self.trigger_dist_params
-        else:
-            dist = self.spacing_dist
-            params = self.spacing_dist_params
 
+        This is private, because we make modifications to the reminder in here, which don't get
+        updated in the db. This is only allowed in the constructor.
+        """
         sample = None
         while sample is None:
             # If sample is None, it means it's outside the bounds of the trigger window
             if adj == 'next':
                 sample = self.next_allowed_time(datetime.now() + timedelta(
-                    seconds=dist(**self._interpret_dist_params(dist, params, trigger))
+                    seconds=self.dist_map[self.dist](**self._interpret_dist_params())
                 ))
             elif adj == 'resample':
                 sample = datetime.now() + timedelta(
-                    seconds=dist(**self._interpret_dist_params(dist, params, trigger))
+                    seconds=self.dist_map[self.dist](**self._interpret_dist_params())
                 )
                 if not self.can_trigger(sample):
                     sample = None
@@ -298,29 +361,34 @@ class Reminder:
                 raise ValueError(f"Invalid adj value: {adj}")
         return sample
 
-    def _interpret_dist_params(self, dist:Distribution, params: dict, trigger:bool=True) -> dict:
+    def _interpret_dist_params(self) -> dict:
         """ Interprets the distribution parameters based on the distribution type, and returns a dictionary of parameters for the correct function """
-        min = self.trigger_min_time if trigger else self.spacing_min
-        max = self.trigger_max_time if trigger else self.spacing_max
-
-        match dist:
+        match self.dist:
             case Reminder.Distribution.UNIFORM:
                 return {
-                    "a": (min - datetime.now()).total_seconds(),
-                    "b": (max - datetime.now()).total_seconds(),
+                    "a": (self.min_time - datetime.now()).total_seconds(),
+                    "b": (self.max_time - datetime.now()).total_seconds(),
                 }
             case Reminder.Distribution.NORMAL:
                 return {
-                    "mu": params['mean'].total_seconds(),
-                    "sigma": params['std'],
+                    "mu": self.dist_params['mean'].total_seconds(),
+                    "sigma": self.dist_params['std'].total_seconds(),
                 }
             case Reminder.Distribution.EXPONENTIAL:
                 return {
-                    "lambd": params['mean'].total_seconds(),
+                    "lambd": self.dist_params['mean'].total_seconds(),
                 }
 
-    def __str__(self):
-        return f"{self.title} - {self.message}"
+    def trigger_if_ready(self, conn:sqlite3.Connection) -> bool:
+        """
+        Triggers the reminder if it's supposed to be triggered right now
+        Returns True if it was triggered, False otherwise
+
+        Because we modify the reminder, we need a db connection so we can update it automatically as well
+        """
+        if (self.next_trigger_time - datetime.now()).total_seconds() <= self.allowed_resolution_sec:
+            return self._trigger(conn)
+        return False
 
     def __eq__(self, other):
         return self.id == other.id
@@ -328,21 +396,33 @@ class Reminder:
     def __hash__(self):
         return hash(self.id)
 
-    def trigger_if_ready(self) -> bool:
-        """
-        Triggers the reminder if it's supposed to be triggered right now
-        Returns True if it was triggered, False otherwise
-        """
-        if (self.next_trigger_time - datetime.now()).total_seconds() <= 1:
-            return self._trigger()
-        return False
+# Throw some tests together
+if __name__ == "__main__":
+    r = Reminder.from_client(dict(
+        id=str(uuid.uuid4()),
+        version=4,
+        title="Test",
+        message="This is a test",
+        work_days=[True] * 7,
+        work_hours=["09:00", "17:00"],
+        min_time="2025-08-26T09:00:00",
+        max_time="2025-08-26T17:00:00",
+        dist='normal',
+        dist_params={
+            "mean": "5s",
+            "std": "2y 3s",
+        },
+        repeat=True,
+        spacing_min="2m",
+        spacing_max="1mo 2d 3h 4m 5s",
+    ))
+    print(r.serialize())
 
-    def add_to_db(self, conn:sqlite3.Connection):
-        """ Adds the reminder to the database """
-        with conn.cursor() as cur:
-            data = self.serialize()
-            cur.execute(
-                # Keys are guaranteed to be safe, values, probably, but let's not risk it
-                f"INSERT INTO reminders {tuple(data.keys())} VALUES ({'?, ' * len(data)})",
-                data.values()
-            )
+    assert r.spacing_max == timedelta(days=32, hours=3, minutes=4, seconds=5)
+
+    # TODO: test db deserialization
+    # TODO: test sample_trigger_time
+    # TODO: test trigger_if_ready
+    # TODO: test next_allowed_time
+
+    print('\033[32mAll tests passed!\033[0m')

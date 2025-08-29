@@ -28,3 +28,4 @@ To install a package:
 ```bash
 curl -X POST api.smartycope.org/install/<package>
 ```
+flask --app rock_server/main run --debug
