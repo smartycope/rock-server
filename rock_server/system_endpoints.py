@@ -152,7 +152,7 @@ def format_logs(lines, threshold):
             levelname = parts[3]
             message = ' '.join(parts[5:])
         except Exception:
-            return f"{line}"
+            return f"<pre>{line}</pre>"
         # Color the levelname
         match levelname:
             case "DEBUG":

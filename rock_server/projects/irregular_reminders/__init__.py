@@ -14,9 +14,8 @@ from .reminder_thread import calculate_next_reminder
 
 bp = Blueprint("non_standard_reminders", __name__)
 log = current_app.logger
-con = sqlite3.connect(DATABASE)
 
-with con:
+with sqlite3.connect(DATABASE) as con:
     con.executescript("""BEGIN;
         CREATE TABLE IF NOT EXISTS devices (
             device_id TEXT PRIMARY KEY,
@@ -72,14 +71,14 @@ class RegisterDeviceValidator(BaseModel):
     "platform": Literal["ios", "android"],
     "app_version": str,
 }}))
-def register_device(device_id: str, data):
+def register_device(data, device_id: str):
     """ Register is a misnomer: it registers first, every time after that it's an update """
-    con.execute(
-        # If it's already registered, update the token
-        "INSERT OR REPLACE INTO devices (device_id, token, platform, app_version, last_updated) VALUES (?, ?, ?, ?, ?)",
-        (device_id, data.token, data.platform, data.app_version, time())
-    )
-    con.commit()
+    with sqlite3.connect(DATABASE) as con:
+        con.execute(
+            # If it's already registered, update the token
+            "INSERT OR REPLACE INTO devices (device_id, token, platform, app_version, last_updated) VALUES (?, ?, ?, ?, ?)",
+            (device_id, data.token, data.platform, data.app_version, time())
+        )
     log.info("Registered device: %s to token: %s", device_id, data.token)
 
     return {"status": "ok"}, 200
@@ -97,11 +96,11 @@ def schedule_reminder(device_id: str):
         return {"errors": e.errors()}, 400
 
     data = reminder.serialize()
-    con.execute(
-        f"INSERT INTO reminders {'?, ' * len(data)} VALUES ({'?, ' * len(data)})",
-        (*data.keys(), *data.values())
-    )
-    con.commit()
+    with sqlite3.connect(DATABASE) as con:
+        con.execute(
+            f"INSERT INTO reminders {'?, ' * len(data)} VALUES ({'?, ' * len(data)})",
+            (*data.keys(), *data.values())
+        )
 
     if next_reminder is None or reminder.next_trigger_time < next_reminder.next_trigger_time:
         next_reminder = reminder
@@ -115,11 +114,11 @@ def update_reminder(device_id: str, id):
     log.debug("Updating reminder %s", id)
     if len(request.json) == 0:
         return 201
-    con.execute(
-        f"UPDATE reminders SET {'? '*len(request.json.keys())} = {'? '*len(request.json.values())} WHERE id = ? AND device_id = ?",
-        (*request.json.keys(), *request.json.values(), str(id), device_id)
-    )
-    con.commit()
+    with sqlite3.connect(DATABASE) as con:
+        con.execute(
+            f"UPDATE reminders SET {'? '*len(request.json.keys())} = {'? '*len(request.json.values())} WHERE id = ? AND device_id = ?",
+            (*request.json.keys(), *request.json.values(), str(id), device_id)
+        )
 
     if next_reminder.id == id:
         next_reminder = calculate_next_reminder(con)
@@ -131,11 +130,11 @@ def delete_reminder(device_id: str, id):
     """ Delete a reminder from the db """
     global next_reminder
     log.debug("Deleting reminder %s", id)
-    con.execute(
-        "DELETE FROM reminders WHERE id = ? AND device_id = ?",
-        (str(id), device_id)
-    )
-    con.commit()
+    with sqlite3.connect(DATABASE) as con:
+        con.execute(
+            "DELETE FROM reminders WHERE id = ? AND device_id = ?",
+            (str(id), device_id)
+        )
     if next_reminder.id == id:
         next_reminder = calculate_next_reminder(con)
     return {"status": "ok"}, 200
@@ -146,5 +145,6 @@ def get_reminders(device_id: str):
     # Remove device_id from the result
     # Darn sqlite3 doesn't support EXCLUDE
     # return con.execute("SELECT * EXCLUDE (device_id) FROM reminders WHERE device_id = ?", (device_id,)).fetchall()
-    cols = [row[1] for row in con.execute("PRAGMA table_info(reminders)") if row[1] != "device_id"]
-    return con.execute(f"SELECT {', '.join(cols)} FROM reminders WHERE device_id = ?", (device_id,)).fetchall()
+    with sqlite3.connect(DATABASE) as con:
+        cols = [row[1] for row in con.execute("PRAGMA table_info(reminders)") if row[1] != "device_id"]
+        return con.execute(f"SELECT {', '.join(cols)} FROM reminders WHERE device_id = ?", (device_id,)).fetchall()

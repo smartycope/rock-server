@@ -17,6 +17,8 @@ def validate_json(schema):
             except Exception as e:
                 log.error("likely a JSON parsing error: %s", e)
                 return {"error": str(e)}, 400
+            print(args)
+            print(kwargs)
             return f(obj, *args, **kwargs)
         return decorated_function
     return decorator
