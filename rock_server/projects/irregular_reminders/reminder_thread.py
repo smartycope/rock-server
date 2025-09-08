@@ -84,6 +84,10 @@ def watch_for_reminders():
             else:
                 log.error("We messed up, reminder %s is not ready to trigger, but we think it is", next_reminder.id)
 
-# Reeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
-reminder_trigger_thread = Thread(target=watch_for_reminders)
-reminder_trigger_thread.start()
+# if current_app.config.get("DEBUG"):
+# if current_app.DEBUG:
+# Starting a thread messes up werkzeug's hot reloading
+if not current_app.debug:
+    # Reeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+    reminder_trigger_thread = Thread(target=watch_for_reminders)
+    reminder_trigger_thread.start()

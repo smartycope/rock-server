@@ -48,15 +48,15 @@ with con:
     END;
     """)
 
-# NOTE: this url_prefix is set by main.py
-API_URL = "https://api.smartycope.org/irregular-reminders"
 ENDPOINTS = {
-    'scheduleReminder':  API_URL + "/reminders/<device_id>",
-    'getReminders':      API_URL + "/reminders/<device_id>",
-    'deleteReminder':    API_URL + "/reminders/<device_id>/<id>",
-    'updateReminder':    API_URL + "/reminders/<device_id>/<id>",
-    'register':          API_URL + "/devices/<device_id>",
+    'scheduleReminder': "/reminders/<device_id>",
+    'getReminders':     "/reminders/<device_id>",
+    'deleteReminder':   "/reminders/<device_id>/<id>",
+    'updateReminder':   "/reminders/<device_id>/<id>",
+    'register':         "/devices/<device_id>",
 }
+
+print(ENDPOINTS)
 
 class RegisterDeviceValidator(BaseModel):
     token: str
