@@ -144,12 +144,15 @@ def pretty_timedelta(td):
 def format_logs(lines, threshold):
     """ Format the logs """
     def format_line(parts):
-        raw_date = parts[0]
-        raw_time = parts[1]
-        datetime = dt.datetime.strptime(f"{raw_date} {raw_time}", "%Y-%m-%d %H:%M:%S,%f")
-        ago = dt.datetime.now() - datetime
-        levelname = parts[3]
-        message = ' '.join(parts[5:])
+        try:
+            raw_date = parts[0]
+            raw_time = parts[1]
+            datetime = dt.datetime.strptime(f"{raw_date} {raw_time}", "%Y-%m-%d %H:%M:%S,%f")
+            ago = dt.datetime.now() - datetime
+            levelname = parts[3]
+            message = ' '.join(parts[5:])
+        except Exception as e:
+            return f"Error parsing line preamble: {str(e)}\t{line}"
         # Color the levelname
         match levelname:
             case "DEBUG":
@@ -188,7 +191,7 @@ def format_logs(lines, threshold):
         except Exception as err:
             # continue  # skip malformed lines
             # log.error("Failed to format log line: %s", line)
-            yield f"Error parsing line: {str(err)}\t{line}<br/>{traceback.format_exc().replace('\n', '<br/>')}"
+            yield f"Error parsing line: {str(err)}\t{line}"#<br/><pre>{traceback.format_exc().replace('\n', '<br/>')}</pre>"
 
 @bp.delete('/logs/')
 def delete_logs():
