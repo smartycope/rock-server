@@ -1,10 +1,12 @@
 from flask import redirect, request, render_template, send_file, url_for, current_app, Blueprint
+import traceback
 import subprocess
 import git
 import logging
 import psutil
 import os
 import time
+import datetime as dt
 from pathlib import Path
 import threading
 
@@ -123,21 +125,86 @@ def docs():
     return redirect(url_for("static", filename="docs/index.html"))
 
 # TODO: this should work, but it doesn't
-@bp.route('/logs/')
+@bp.get('/logs/')
 def logs():
     """ The default log level is INFO """
     return redirect(url_for(".get_logs", level='info'))
 
-@bp.route('/logs/<level>/', methods=["GET", "DELETE"])
+def pretty_timedelta(td):
+    """ Convert a timedelta to a human readable string """
+    if td.days > 0:
+        return f"{td.days} days"
+    elif td.seconds > 3600:
+        return f"{td.seconds // 3600} hours"
+    elif td.seconds > 60:
+        return f"{td.seconds // 60} minutes"
+    else:
+        return f"{td.seconds} seconds"
+
+def format_logs(lines, threshold):
+    """ Format the logs """
+    def format_line(parts):
+        raw_date = parts[0]
+        raw_time = parts[1]
+        datetime = dt.datetime.strptime(f"{raw_date} {raw_time}", "%Y-%m-%d %H:%M:%S,%f")
+        ago = dt.datetime.now() - datetime
+        levelname = parts[3]
+        message = ' '.join(parts[5:])
+        # Color the levelname
+        match levelname:
+            case "DEBUG":
+                levelname = "<span style='color: gray;'>DEBUG</span>"
+            case "INFO":
+                levelname = "<span style='color: blue;'>INFO</span>"
+            case "WARNING":
+                levelname = "<span style='color: orange;'>WARNING</span>"
+            case "ERROR":
+                levelname = "<span style='color: red;'>ERROR</span>"
+
+        if message.startswith("Request") or message.startswith("Response"):
+            message = message.replace("http://localhost:5000", "", 1)
+            message = message.replace("https://api.smartycope.org", "", 1)
+            message = message.replace("Request", "<span style='font-weight: bold'>⬇️  Request</span>", 1)
+            message = message.replace("Response", "<span style='font-weight: bold'>🔼 Response</span>", 1)
+            message = message.replace("->", "<span style='font-weight: bold'>-></span>", 1)
+            message = message.replace("200 OK", "<span style='color: green'>200 OK</span>", 1)
+
+
+        preamble = f"<span style='color: #dedede;'>{raw_date} {raw_time}</span> {pretty_timedelta(ago)} ago {levelname} "
+        return f"{preamble}: {message}"
+
+    spacer_count = 0
+    for line in reversed(lines):
+        try:
+            parts = line.split(' ')
+            # It's a spacer
+            if len(parts) == 1:
+                spacer_count += 1
+                yield line + f"<span style='color: #dedede;'>Spacer #{spacer_count}</span>"
+                continue
+            levelname = parts[3]
+            if logging._nameToLevel.get(levelname, 100) >= threshold:
+                yield format_line(parts)
+        except Exception as err:
+            # continue  # skip malformed lines
+            # log.error("Failed to format log line: %s", line)
+            yield f"Error parsing line: {str(err)}\t{line}<br/>{traceback.format_exc().replace('\n', '<br/>')}"
+
+@bp.delete('/logs/')
+def delete_logs():
+    with open(current_app.LOG_FILE, 'w') as f:
+        f.write("")
+    return "Logs cleared", 200
+
+@bp.post('/logs/')
+def add_spacer():
+    with open(current_app.LOG_FILE, 'a') as f:
+        f.write("<hr/>\n")
+    return "Spacer added", 200
+
+@bp.get('/logs/<level>/')
 def get_logs(level):
     level = level.upper()
-
-    if level == "CLEAR" and request.method == "DELETE":
-        with open(current_app.LOG_FILE, 'w') as f:
-            f.write("")
-        return "Logs cleared", 200
-    elif request.method == "DELETE":
-        return "Method not allowed", 405
 
     # TODO: something like this probably
     # journalctl -u rock-server.service -q -f
@@ -160,20 +227,11 @@ def get_logs(level):
     if level not in logging._nameToLevel:
         return f'Invalid level: {level}', 400
 
-    threshold = logging._nameToLevel[level]
-    lines = []
-
     try:
         with open(current_app.LOG_FILE, 'r') as f:
-            for line in f:
-                try:
-                    levelname = line.split(' - ')[1]
-                    if logging._nameToLevel.get(levelname, 100) >= threshold:
-                        lines.append(line.strip())
-                except Exception:
-                    continue  # skip malformed lines
+            lines = format_logs(f.readlines(), logging._nameToLevel[level])
     except FileNotFoundError:
-        lines.append("Log file not found.")
+        lines = ["Log file not found."]
 
-    return render_template('logs_template.html', logs=reversed(lines))
+    return render_template('logs_template.html', logs=lines)
 

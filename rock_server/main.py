@@ -41,7 +41,7 @@ with app.app_context():
 
     @app.after_request
     def log_response(response):
-        app.logger.debug("Response %s %s -> %s", request.method, request.url, response.status)
+        app.logger.debug("Response: %s %s -> %s", request.method, request.url, response.status)
         return response
 
     @app.errorhandler(Exception)
@@ -82,10 +82,5 @@ if __name__ == "__main__":
 
 
 
-
-
-
-
-
-
-
+# TODO:
+# Left off with the flask server giving 404s when it shouldn't

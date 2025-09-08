@@ -48,7 +48,6 @@ with con:
     END;
     """)
 
-
 # NOTE: this url_prefix is set by main.py
 API_URL = "https://api.smartycope.org/irregular-reminders"
 ENDPOINTS = {
@@ -65,9 +64,9 @@ class RegisterDeviceValidator(BaseModel):
     app_version: str
 
 # The order of the decorators is important
-@bp.route(ENDPOINTS["register"], methods=["POST"])
+@bp.post(ENDPOINTS["register"])
 # @validate_json(RegisterDeviceValidator)
-# Note: this is cursed. I'm purely doing it out of curiosity (and to flex)
+# NOTE: this is cursed. I'm purely doing it out of curiosity (and to flex)
 @validate_json(type("RegisterDeviceValidator2", (BaseModel,), {"__annotations__": {
     "token": str,
     "platform": Literal["ios", "android"],
@@ -75,8 +74,8 @@ class RegisterDeviceValidator(BaseModel):
 }}))
 def register_device(device_id: str, data):
     """ Register is a misnomer: it registers first, every time after that it's an update """
-    # If it's already registered, update the token
     con.execute(
+        # If it's already registered, update the token
         "INSERT OR REPLACE INTO devices (device_id, token, platform, app_version, last_updated) VALUES (?, ?, ?, ?, ?)",
         (device_id, data.token, data.platform, data.app_version, time())
     )
@@ -85,7 +84,7 @@ def register_device(device_id: str, data):
 
     return {"status": "ok"}, 200
 
-@bp.route(ENDPOINTS["scheduleReminder"], methods=["POST"])
+@bp.post(ENDPOINTS["scheduleReminder"])
 def schedule_reminder(device_id: str):
     """ Receive a reminder and add it to the db """
     global next_reminder
@@ -110,7 +109,7 @@ def schedule_reminder(device_id: str):
 
     return {"status": "ok"}, 200
 
-@bp.route(ENDPOINTS["updateReminder"], methods=["PUT"])
+@bp.put(ENDPOINTS["updateReminder"])
 def update_reminder(device_id: str, id):
     """ Set a reminder to alive or dead """
     log.debug("Updating reminder %s", id)
@@ -127,7 +126,7 @@ def update_reminder(device_id: str, id):
 
     return {"status": "ok"}, 200
 
-@bp.route(ENDPOINTS["deleteReminder"], methods=["DELETE"])
+@bp.delete(ENDPOINTS["deleteReminder"])
 def delete_reminder(device_id: str, id):
     """ Delete a reminder from the db """
     global next_reminder
@@ -141,7 +140,7 @@ def delete_reminder(device_id: str, id):
         next_reminder = calculate_next_reminder(con)
     return {"status": "ok"}, 200
 
-@bp.route(ENDPOINTS["getReminders"], methods=["GET"])
+@bp.get(ENDPOINTS["getReminders"])
 def get_reminders(device_id: str):
     """ Get all reminders for a device """
     # Remove device_id from the result

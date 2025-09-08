@@ -5,11 +5,12 @@
 <body>
     <h1>Logs</h1>
     <h2>Newest first</h2>
-    <button onclick="fetch('/logs/clear/', { method: 'DELETE' }).then(() => location.reload())">Clear Logs</button>
+    <button onclick="fetch('/logs/', { method: 'DELETE' }).then(() => location.reload())">Clear Logs</button>
+    <button onclick="fetch('/logs/', { method: 'POST' }).then(() => location.reload())">Add Spacer</button>
     <br/>
 
     {% for log in logs %}
-        {{ log }}<br/>
+        {{ log | safe}}<br/>
     {% endfor %}
 </body>
 </html>
