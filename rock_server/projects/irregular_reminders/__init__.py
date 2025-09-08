@@ -144,4 +144,7 @@ def delete_reminder(device_id: str, id):
 def get_reminders(device_id: str):
     """ Get all reminders for a device """
     # Remove device_id from the result
-    return con.execute("SELECT * EXCLUDE (device_id) FROM reminders WHERE device_id = ?", (device_id,)).fetchall()
+    # Darn sqlite3 doesn't support EXCLUDE
+    # return con.execute("SELECT * EXCLUDE (device_id) FROM reminders WHERE device_id = ?", (device_id,)).fetchall()
+    cols = [row[1] for row in con.execute("PRAGMA table_info(reminders)") if row[1] != "device_id"]
+    return con.execute(f"SELECT {', '.join(cols)} FROM reminders WHERE device_id = ?", (device_id,)).fetchall()

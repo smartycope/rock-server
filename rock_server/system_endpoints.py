@@ -151,8 +151,8 @@ def format_logs(lines, threshold):
             ago = dt.datetime.now() - datetime
             levelname = parts[3]
             message = ' '.join(parts[5:])
-        except Exception as e:
-            return f"Error parsing line preamble: {str(e)}\t{line}"
+        except Exception:
+            return f"{line}"
         # Color the levelname
         match levelname:
             case "DEBUG":
