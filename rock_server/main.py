@@ -25,7 +25,9 @@ app = Flask(__name__)
 app.DEBUG = app.debug
 
 # For irregular reminders
+# TODO: this should be moved to the config
 app.DATABASE = "reminders.db"
+app.config['DATABASE'] = "reminders.db"
 
 # Set the logger to debug level because we're filtering later
 app.logger.setLevel(logging.DEBUG)
