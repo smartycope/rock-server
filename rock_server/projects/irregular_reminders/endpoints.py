@@ -48,12 +48,14 @@ with sqlite3.connect(DB) as con:
     END;
     """)
 
+API_VERSION = "v1"
+VERSION = int(API_VERSION[1:])
 ENDPOINTS = {
-    'scheduleReminder': "/reminders/<device_id>",
-    'getReminders':     "/reminders/<device_id>",
-    'deleteReminder':   "/reminders/<device_id>/<id>",
-    'updateReminder':   "/reminders/<device_id>/<id>",
-    'register':         "/devices/<device_id>",
+    'scheduleReminder': f"/{API_VERSION}/reminders/<device_id>",
+    'getReminders':     f"/{API_VERSION}/reminders/<device_id>",
+    'deleteReminder':   f"/{API_VERSION}/reminders/<device_id>/<id>",
+    'updateReminder':   f"/{API_VERSION}/reminders/<device_id>/<id>",
+    'register':         f"/{API_VERSION}/devices/<device_id>",
 }
 
 class RegisterDeviceValidator(BaseModel):
@@ -89,7 +91,7 @@ def schedule_reminder(device_id: str):
 
     log.debug("Received reminders schedule request")
     try:
-        reminder = Reminder(**request.json, device_id=device_id)
+        reminder = Reminder(**request.json, device_id=device_id, version=VERSION)
     except ValidationError as e:
         log.error("Failed to validate reminder: %s", e.errors())
         errs = e.errors()
