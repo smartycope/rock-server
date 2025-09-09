@@ -94,7 +94,10 @@ def schedule_reminder(device_id: str):
         log.error("Failed to validate reminder: %s", e.errors())
         errs = e.errors()
         for err in errs:
-            err['ctx']['error'] = str(err['ctx']['error'])
+            try:
+                err['ctx']['error'] = str(err['ctx']['error'])
+            except KeyError:
+                pass
         return {"errors": errs}, 400
 
     data = reminder.serialize()

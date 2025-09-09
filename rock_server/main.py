@@ -15,7 +15,8 @@ app = Flask(__name__)
 
 # with sqlite3.connect("apikeys.db") as con:
     # con.execute("CREATE TABLE IF NOT EXISTS apikeys (apikey PRIMARY KEY, secret)")
-    # con.execute("CREATE TABLE IF NOT EXISTS devices (token PRIMARY KEY, platform, app_version)")
+    # con.execute("flask --app rock_server/main run --debug
+CREATE TABLE IF NOT EXISTS devices (token PRIMARY KEY, platform, app_version)")
     # con.execute("CREATE TABLE IF NOT EXISTS reminders (")
 
 
