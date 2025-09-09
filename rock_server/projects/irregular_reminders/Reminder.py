@@ -9,6 +9,7 @@ import random
 import enum
 from typing import Literal, ClassVar
 import uuid
+import json
 from pydantic import field_validator, model_validator, BaseModel
 import re
 
@@ -32,6 +33,9 @@ import re
 }
 """
 
+def pretty_timedelta(td: timedelta) -> str:
+    """ Convert a timedelta to a human-readable string """
+    return f"{td.days}d {td.seconds // 3600}h {(td.seconds // 60) % 60}m {td.seconds % 60}s"
 
 class Reminder(BaseModel):
     """ A complex, non-standard reminder with many parameters
@@ -56,7 +60,7 @@ class Reminder(BaseModel):
     work_hours: tuple[time, time] | None = None
     # day of the week it's allowed to go off (Monday is 0, Sunday is 6 (to be compliant with datetime.weekday()))
     work_days: list[bool] = [True] * 7
-    # min/max timedelta from now of the window when it should go off
+    # min/max datetime of the window when it should go off
     min_time: datetime | None = None
     max_time: datetime | None = None
     # statistical distribution describing when within that window it should go off
@@ -110,8 +114,9 @@ class Reminder(BaseModel):
         if self.alive is None:
             self.alive = self.max_time is None or self.max_time > datetime.now()
 
-        self.next_trigger_time = self._sample_trigger_time()
-
+        # If we're deserializing, then don't create a new one
+        if self.next_trigger_time is None:
+            self.next_trigger_time = self._sample_trigger_time()
 
     @field_validator("spacing_min", "spacing_max", mode="before")
     @classmethod
@@ -125,6 +130,11 @@ class Reminder(BaseModel):
         key = either('mo', anyof('ymdhs'))
         pattern = group(number, name='num') + group(key, name='key') + ow
         """
+        # I don't think pydantic should be passing None to this function? But it is, so...
+        if v is None:
+            return None
+        if isinstance(v, timedelta):
+            return v
         try:
             # Remove any whitespace
             trimmed = re.sub(r'\s+', '', v)
@@ -138,6 +148,7 @@ class Reminder(BaseModel):
 
             prev_end = 0
             total = timedelta()
+            seen_units = set()
             for m in matches:
                 num = int(m['num'])
                 key = m['key']
@@ -148,6 +159,9 @@ class Reminder(BaseModel):
                     raise ValueError("Invalid timedelta format (overlapping or non-contiguous matches)")
                 prev_end = m.end()
 
+                if key in seen_units:
+                    raise ValueError("Invalid timedelta format (duplicate unit)")
+
                 match key:
                     case 'mo': total += timedelta(days=num * 30)
                     case 'y':  total += timedelta(days=num * 365)
@@ -155,6 +169,8 @@ class Reminder(BaseModel):
                     case 'h':  total += timedelta(hours=num)
                     case 'm':  total += timedelta(minutes=num)
                     case 's':  total += timedelta(seconds=num)
+                    case _: raise ValueError("Invalid timedelta format (unknown unit)")
+                seen_units.add(key)
 
             if prev_end != len(trimmed):
                 raise ValueError("Invalid timedelta format (trailing characters)")
@@ -193,40 +209,61 @@ class Reminder(BaseModel):
 
         return self
 
-    def serialize(self):
-        """ Serialize the reminder to a dictionary """
-        return {
-            "id": self.id,
-            "device_id": self.device_id,
+    def serialize(self, include_device_id: bool = True):
+        """ Serialize the reminder to a dictionary, whose values can be directly inserted into the database """
+        # Need to be in this order:
+        # 'id', 'version', 'title', 'message', 'work_hours', 'work_days',
+        # 'min_time', 'max_time', 'dist', 'dist_params', 'repeat', 'spacing_min',
+        # 'spacing_max', 'alive', 'last_trigger_time', 'next_trigger_time',
+        # 'device_id'
+        data = {
+            "id": str(self.id),
             # Simply incrementally versioned. This is different from the file version
             "version": 1,
             "title": self.title,
             "message": self.message,
-            "work_hours": self.work_hours,
-            "min_time": self.min_time,
-            "max_time": self.max_time,
-            "dist": self.dist,
-            "dist_params": self.dist_params,
-            "work_days": self.work_days,
+            "work_hours": f'{self.work_hours[0].strftime("%H:%M")},{self.work_hours[1].strftime("%H:%M")}' if self.work_hours else None,
+            "work_days": ",".join(map(str, map(int, self.work_days))),
+            "min_time": self.min_time.isoformat() if self.min_time else None,
+            "max_time": self.max_time.isoformat() if self.max_time else None,
+            "dist": self.dist.name.lower(),
+            # NOTE: this only works because all the current dist_params are timedelta objects by coincidence
+            "dist_params": json.dumps({k: pretty_timedelta(v) for k, v in self.dist_params.items()}),
             "repeat": self.repeat,
-            "spacing_min": self.spacing_min,
-            "spacing_max": self.spacing_max,
-            "next_trigger_time": self.next_trigger_time,
-            "last_trigger_time": self.last_trigger_time,
+            "spacing_min": pretty_timedelta(self.spacing_min) if self.spacing_min else None,
+            "spacing_max": pretty_timedelta(self.spacing_max) if self.spacing_max else None,
             "alive": self.alive,
+            "last_trigger_time": self.last_trigger_time.isoformat() if self.last_trigger_time else None,
+            "next_trigger_time": self.next_trigger_time.isoformat() if self.next_trigger_time else None,
+            "device_id": str(self.device_id),
         }
+        if not include_device_id:
+            del data['device_id']
+        return data
 
     @staticmethod
     def from_db(row):
         """ Deserialize from a database row """
-        # I'm pretty sure this won't work
-        print("I'm pretty sure this won't work")
-        return Reminder(**row)
-
-    # @staticmethod
-    # def from_client(**data):
-    #     """ Validate and deserialize from a client request. This will handle validation and casting """
-    #     return Reminder(**data)
+        if row is None:
+            raise ValueError("Empty row given")
+        # This is the order of the columns in the db
+        data = dict(zip([
+            'id', 'version', 'title', 'message', 'work_hours', 'work_days',
+            'min_time', 'max_time', 'dist', 'dist_params', 'repeat', 'spacing_min',
+            'spacing_max', 'alive', 'last_trigger_time', 'next_trigger_time',
+            'device_id'
+        ], row))
+        data['work_days'] = [bool(int(x)) for x in data['work_days'].split(',')]
+        data['dist_params'] = json.loads(data['dist_params'])
+        data['work_hours'] = (
+            time.fromisoformat(data['work_hours'].split(',')[0]),
+            time.fromisoformat(data['work_hours'].split(',')[1])
+        ) if data['work_hours'] else None
+        # data['min_time'] = datetime.fromisoformat(data['min_time'])
+        # data['max_time'] = datetime.fromisoformat(data['max_time'])
+        # data['spacing_min'] = Reminder.cast_timedelta(data['spacing_min'])
+        # data['spacing_max'] = Reminder.cast_timedelta(data['spacing_max'])
+        return Reminder(**data)
 
     def _trigger(self, conn:sqlite3.Connection):
         """
@@ -270,12 +307,13 @@ class Reminder(BaseModel):
         if self.max_time and now > self.max_time:
             return False
 
-        # spacing_min/max
-        if self.spacing_min and now < self.spacing_min:
-            return False
-        # This should never happen, but we still want to check it
-        if self.spacing_max and now > self.spacing_max:
-            return False
+        if self.repeat and self.last_trigger_time is not None:
+            # spacing_min/max
+            if self.spacing_min and now < self.spacing_min + self.last_trigger_time:
+                return False
+            # This should never happen, but we still want to check it
+            if self.spacing_max and now > self.spacing_max + self.last_trigger_time:
+                return False
 
         return self.alive
 
@@ -325,7 +363,14 @@ class Reminder(BaseModel):
                     microsecond=0,
                 )
 
-            if next_time > self.max_time or (self.repeat and self.last_trigger_time and next_time > self.spacing_max + self.last_trigger_time):
+            if (self.max_time and
+                (next_time > self.max_time or
+                    (
+                        self.repeat and
+                        self.last_trigger_time and
+                        next_time > self.spacing_max + self.last_trigger_time
+                    )
+            )):
                 return
 
             return next_time
@@ -391,7 +436,7 @@ class Reminder(BaseModel):
         return False
 
     def __eq__(self, other):
-        return self.id == other.id
+        return str(self.id) == str(other.id)
 
     def __hash__(self):
         return hash(self.id)

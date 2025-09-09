@@ -1,4 +1,4 @@
-DATABASE = "reminders.db"
+# DATABASE = "reminders.db"
 
 # The next reminder to trigger, None if there are no reminders
 # This isn't specific to a specific device, this goes for all of them

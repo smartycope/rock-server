@@ -20,7 +20,12 @@ app = Flask(__name__)
 
 
 # If we're running on the server, we're not debugging
-app.DEBUG = os.uname().nodename != "rockpi-4b"
+# app.DEBUG = os.uname().nodename != "rockpi-4b"
+# NOTE: this is actually built in, so...
+app.DEBUG = app.debug
+
+# For irregular reminders
+app.DATABASE = "reminders.db"
 
 # Set the logger to debug level because we're filtering later
 app.logger.setLevel(logging.DEBUG)

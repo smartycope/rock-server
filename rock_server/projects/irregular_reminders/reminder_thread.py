@@ -6,10 +6,10 @@ from datetime import datetime, timedelta
 import requests
 from flask import current_app
 from .Reminder import Reminder
-from .globals import DATABASE, next_reminder
-
+from .globals import next_reminder
 
 log = current_app.logger
+DB = current_app.config['DATABASE']
 
 def get_token(device_id: str, con:sqlite3.Connection):
     """ Get a device's token from the database """
@@ -53,17 +53,23 @@ def send_push_notification(device_id: str, reminder: Reminder, con:sqlite3.Conne
 def calculate_next_reminder(con:sqlite3.Connection):
     """ Calculate the next reminder to trigger """
     with con:
-        n = Reminder.from_db(con.execute(
+        soonest = con.execute(
             "SELECT * FROM reminders WHERE alive = 1 ORDER BY next_trigger_time ASC LIMIT 1"
-        ).fetchone())
+        ).fetchone()
+        if soonest is None:
+            log.debug("No reminders found")
+            return None
+        n = Reminder.from_db(soonest)
         log.info("Next reminder is %s, set to go off in %s", n, n.next_trigger_time - datetime.now())
         return n
 
 def watch_for_reminders():
-    """ I don't expect more than 1 second resolution (realistically, 1 minute resolution, but aim for 1s) """
+    """ I don't expect more than 1 second resolution (realistically, 1 minute resolution, but aim for 1s)
+        Note that this thread doesn't (and I thiiiink can't?) have access to the current app context
+    """
     global next_reminder
     # Connections aren't thread safe
-    threaded_con = sqlite3.connect(DATABASE)
+    threaded_con = sqlite3.connect(DB)
     while True:
         if next_reminder is None:
             sleep(1)
@@ -87,7 +93,8 @@ def watch_for_reminders():
 # if current_app.config.get("DEBUG"):
 # if current_app.DEBUG:
 # Starting a thread messes up werkzeug's hot reloading
-if not current_app.debug:
+# The testing is just to get it play nice with pytest (it works fine, it just doesnt want to stop)
+if not current_app.debug and not current_app.testing:
     # Reeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
     reminder_trigger_thread = Thread(target=watch_for_reminders)
     reminder_trigger_thread.start()
