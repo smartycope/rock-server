@@ -22,6 +22,8 @@ HEADERS = {
     "Accept": "application/json",
     "Accept-encoding": "gzip, deflate",
 }
+# Probably need to move this somewhere
+API_VERSION = 'v1'
 
 @pytest.fixture
 def client(app, db):
@@ -37,7 +39,7 @@ def test_register_device(client):
         "app_version": TEST_APP_VERSION
     }
 
-    response = client.post(f'/devices/{TEST_DEVICE_ID}',
+    response = client.post(f'{API_VERSION}/devices/{TEST_DEVICE_ID}',
                          data=json.dumps(data),
                          content_type='application/json')
 
@@ -61,7 +63,7 @@ def test_register_device(client):
     new_token = "new-test-token-789"
     data["token"] = new_token
 
-    response = client.post(f'/devices/{TEST_DEVICE_ID}',
+    response = client.post(f'{API_VERSION}/devices/{TEST_DEVICE_ID}',
                          data=json.dumps(data),
                          content_type='application/json')
 
@@ -76,23 +78,16 @@ def test_register_device(client):
 
 def test_schedule_reminder(client):
     """Test scheduling a reminder."""
-    # First register a device
-    # data = {
-    #     "token": TEST_TOKEN,
-    #     "platform": TEST_PLATFORM,
-    #     "app_version": TEST_APP_VERSION
-    # }
-    # client.post(f'/devices/{TEST_DEVICE_ID}',
-    #            data=json.dumps(data),
-    #            content_type='application/json')
-
     # Create a test reminder
+    # The client shouldn't pass version or device_id (device_id is in the URL)
+    # And for now, at least, version is the same as the API_VERSION in the URL
     reminder_data = {
         "id": str(uuid.uuid4()),
-        "version": 1,
+        # "version": 1,
         "title": "Test Reminder",
         "message": "This is a test reminder",
-        "work_hours": ["09:00", "17:00"],
+        "work_hours_start": "09:00",
+        "work_hours_end": "17:00",
         "work_days": [True, True, True, True, True, False, False],
         "min_time": (datetime.now() - timedelta(days=1)).isoformat(),
         "max_time": (datetime.now() + timedelta(days=7)).isoformat(),
@@ -104,7 +99,7 @@ def test_schedule_reminder(client):
     }
 
     # Test successful reminder creation
-    response = client.post(f'/reminders/{TEST_DEVICE_ID}',
+    response = client.post(f'{API_VERSION}/reminders/{TEST_DEVICE_ID}',
                           data=json.dumps(reminder_data),
                           headers=HEADERS,
                           content_type='application/json')
@@ -127,40 +122,8 @@ def test_schedule_reminder(client):
 def test_get_reminders(client, db, examples):
     """Test retrieving reminders for a device."""
 
-    # First register a device and add a reminder
-    # data = {
-    #     "token": TEST_TOKEN,
-    #     "platform": TEST_PLATFORM,
-    #     "app_version": TEST_APP_VERSION
-    # }
-    # client.post(f'/devices/{TEST_DEVICE_ID}',
-    #            data=json.dumps(data),
-    #            headers=HEADERS)
-
-    # # Add a test reminder
-    # reminder_id = str(uuid.uuid4())
-    # reminder_data = {
-    #     "id": reminder_id,
-    #     "version": 1,
-    #     "title": "Test Reminder",
-    #     "message": "This is a test reminder",
-    #     "work_hours": ["09:00", "17:00"],
-    #     "work_days": [True, True, True, True, True, False, False],
-    #     "min_time": (datetime.now() - timedelta(days=1)).isoformat(),
-    #     "max_time": (datetime.now() + timedelta(days=7)).isoformat(),
-    #     "dist": "uniform",
-    #     "dist_params": {"min": 3600, "max": 86400},
-    #     "repeat": True,
-    #     "spacing_min": 3600,
-    #     "spacing_max": 86400
-    # }
-
-    # client.post(f'/reminders/{TEST_DEVICE_ID}',
-    #            data=json.dumps(reminder_data),
-    #            headers=HEADERS)
-
     # Test getting reminders
-    response = client.get(f'/reminders/{examples["devices"][0]["device_id"]}')
+    response = client.get(f'{API_VERSION}/reminders/{examples["devices"][0]["device_id"]}')
 
     assert response.status_code == 200
     reminders = response.json
@@ -171,44 +134,12 @@ def test_get_reminders(client, db, examples):
     assert 'device_id' not in reminders[0]
 
     # Test getting reminders for non-existent device
-    response = client.get('/reminders/non-existent-device')
+    response = client.get(f'{API_VERSION}/reminders/non-existent-device')
     assert response.status_code == 200
     assert response.json == []
 
 def test_update_reminder(client, db, examples):
     """Test updating a reminder."""
-    # First register a device and add a reminder
-    # data = {
-    #     "token": TEST_TOKEN,
-    #     "platform": TEST_PLATFORM,
-    #     "app_version": TEST_APP_VERSION
-    # }
-    # client.post(f'/devices/{TEST_DEVICE_ID}',
-    #            data=json.dumps(data),
-    #            headers=HEADERS)
-
-    # Add a test reminder
-    # reminder_id = str(uuid.uuid4())
-    # reminder_data = {
-    #     "id": reminder_id,
-    #     "version": 1,
-    #     "title": "Test Reminder",
-    #     "message": "This is a test reminder",
-    #     "work_hours": ["09:00", "17:00"],
-    #     "work_days": [True, True, True, True, True, False, False],
-    #     "min_time": (datetime.now() - timedelta(days=1)).isoformat(),
-    #     "max_time": (datetime.now() + timedelta(days=7)).isoformat(),
-    #     "dist": "uniform",
-    #     "dist_params": {"min": 3600, "max": 86400},
-    #     "repeat": True,
-    #     "spacing_min": 3600,
-    #     "spacing_max": 86400
-    # }
-
-    # client.post(f'/reminders/{TEST_DEVICE_ID}',
-    #            data=json.dumps(reminder_data),
-    #            headers=HEADERS)
-
     # Test updating the reminder
     update_data = {
         "title": "Updated Test Reminder",
@@ -218,7 +149,7 @@ def test_update_reminder(client, db, examples):
     # with patch('rock_server.projects.irregular_reminders.calculate_next_reminder') as mock_calculate:
     #     mock_calculate.return_value = MagicMock(id="test-reminder-1")
 
-    response = client.put(f'/reminders/{examples["devices"][0]["device_id"]}/{str(examples["reminder_objs"][0].id)}',
+    response = client.put(f'{API_VERSION}/reminders/{examples["devices"][0]["device_id"]}/{str(examples["reminder_objs"][0].id)}',
         data=json.dumps(update_data),
         headers=HEADERS
     )
@@ -237,43 +168,7 @@ def test_update_reminder(client, db, examples):
 
 def test_delete_reminder(client, db, examples):
     """Test deleting a reminder."""
-    # First register a device and add a reminder
-    # data = {
-    #     "token": TEST_TOKEN,
-    #     "platform": TEST_PLATFORM,
-    #     "app_version": TEST_APP_VERSION
-    # }
-    # client.post(f'/devices/{TEST_DEVICE_ID}',
-    #            data=json.dumps(data),
-    #            headers=HEADERS)
-
-    # # Add a test reminder
-    # reminder_id = str(uuid.uuid4())
-    # reminder_data = {
-    #     "id": reminder_id,
-    #     "version": 1,
-    #     "title": "Test Reminder",
-    #     "message": "This is a test reminder",
-    #     "work_hours": ["09:00", "17:00"],
-    #     "work_days": [True, True, True, True, True, False, False],
-    #     "min_time": (datetime.now() - timedelta(days=1)).isoformat(),
-    #     "max_time": (datetime.now() + timedelta(days=7)).isoformat(),
-    #     "dist": "uniform",
-    #     "dist_params": {"min": 3600, "max": 86400},
-    #     "repeat": True,
-    #     "spacing_min": 3600,
-    #     "spacing_max": 86400
-    # }
-
-    # client.post(f'/reminders/{TEST_DEVICE_ID}',
-    #            data=json.dumps(reminder_data),
-    #            headers=HEADERS)
-
-    # Test deleting the reminder
-    # with patch('rock_server.projects.irregular_reminders.calculate_next_reminder') as mock_calculate:
-    #     mock_calculate.return_value = None
-
-    response = client.delete(f'/reminders/{TEST_DEVICE_ID}/test-reminder-1', headers=HEADERS)
+    response = client.delete(f'{API_VERSION}/reminders/{examples["devices"][0]["device_id"]}/{str(examples["reminder_objs"][0].id)}', headers=HEADERS)
 
     assert response.status_code == 200
     assert response.json == {"status": "ok"}
@@ -281,11 +176,11 @@ def test_delete_reminder(client, db, examples):
     # Verify the reminder was deleted from the database
     with sqlite3.connect(DB) as con:
         cursor = con.cursor()
-        cursor.execute("SELECT * FROM reminders WHERE id = ?", ("test-reminder-1",))
+        cursor.execute("SELECT * FROM reminders WHERE id = ?", (str(examples['reminder_objs'][0].id),))
         reminder = cursor.fetchone()
 
         assert reminder is None
 
     # Test deleting a non-existent reminder
-    response = client.delete(f'/reminders/{TEST_DEVICE_ID}/non-existent-reminder', headers=HEADERS)
+    response = client.delete(f'{API_VERSION}/reminders/{examples["devices"][0]["device_id"]}/non-existent-reminder', headers=HEADERS)
     assert response.status_code == 200  # Should still return 200 even if reminder doesn't exist

@@ -49,7 +49,8 @@ class TestReminder:
         assert str(reminder.device_id) == str(examples['reminder_objs'][0].device_id)
         assert reminder.title == examples['reminder_objs'][0].title
         assert reminder.message == examples['reminder_objs'][0].message
-        assert reminder.work_hours == examples['reminder_objs'][0].work_hours
+        assert reminder.work_hours_start == examples['reminder_objs'][0].work_hours_start
+        assert reminder.work_hours_end == examples['reminder_objs'][0].work_hours_end
         assert reminder.work_days == examples['reminder_objs'][0].work_days
         assert reminder.min_time == examples['reminder_objs'][0].min_time
         assert reminder.max_time == examples['reminder_objs'][0].max_time
@@ -64,7 +65,8 @@ class TestReminder:
         assert reminder == examples['reminder_objs'][0]
 
         # Check that work_hours are serialized back to strings
-        assert type(reminder.work_hours) == type(examples['reminder_objs'][0].work_hours), f"Expected {type(examples['reminder_objs'][0].work_hours)}, got {type(reminder.work_hours)}"
+        assert type(reminder.work_hours_start) == type(examples['reminder_objs'][0].work_hours_start), f"Expected {type(examples['reminder_objs'][0].work_hours_start)}, got {type(reminder.work_hours_start)}"
+        assert type(reminder.work_hours_end) == type(examples['reminder_objs'][0].work_hours_end), f"Expected {type(examples['reminder_objs'][0].work_hours_end)}, got {type(reminder.work_hours_end)}"
 
     def test_create_reminder_with_minimal_fields(self, app, examples):
         """Test creating a reminder with only required fields"""
@@ -90,14 +92,17 @@ class TestReminder:
         data = examples['reminder_objs'][0].serialize()
 
         # Test invalid work_hours (end before start)
-        data["work_hours"] = "17:00,09:00"
+        data["work_hours_start"] = "17:00"
+        data["work_hours_end"] = "09:00"
         with pytest.raises(ValueError, match="work_hours must be in order"):
             Reminder.from_db(data.values())
 
         # Test valid work_hours
-        data["work_hours"] = "09:00,17:00"
+        data["work_hours_start"] = "09:00"
+        data["work_hours_end"] = "17:00"
         reminder = Reminder.from_db(data.values())
-        assert reminder.work_hours == (time(9), time(17))
+        assert reminder.work_hours_start == time(9)
+        assert reminder.work_hours_end == time(17)
 
     def test_work_days_validation(self, app, examples):
         """Test work_days validation"""

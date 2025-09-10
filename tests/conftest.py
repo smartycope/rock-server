@@ -45,7 +45,8 @@ def examples(app):
                 "version": 1,
                 "title": "Test Reminder",
                 "message": "This is a test reminder",
-                "work_hours": None,
+                "work_hours_start": None,
+                "work_hours_end": None,
                 "work_days": [True, True, True, True, True, False, False],
                 "min_time": (datetime.now() - timedelta(seconds=1)),
                 "max_time": (datetime.now() + timedelta(seconds=7)),
@@ -64,7 +65,8 @@ def examples(app):
                 "version": 1,
                 "title": "Test Reminder 2",
                 "message": "This is a second test reminder",
-                "work_hours": [time(9, 0), time(17, 0)],
+                "work_hours_start": time(9, 0),
+                "work_hours_end": time(17, 0),
                 "work_days": [True, True, True, True, True, False, False],
                 "min_time": (datetime.now() - timedelta(days=1)),
                 "max_time": (datetime.now() + timedelta(days=7)),
@@ -83,7 +85,8 @@ def examples(app):
                 "version": 1,
                 "title": "Test Reminder 2",
                 "message": "This is a second test reminder",
-                "work_hours": [time(9, 0), time(17, 0)],
+                "work_hours_start": time(9, 0),
+                "work_hours_end": time(17, 0),
                 "work_days": [True, True, True, True, True, False, False],
                 "min_time": (datetime.now() - timedelta(minutes=1)),
                 "max_time": None,
@@ -145,7 +148,8 @@ def db(app, examples):
                     version,
                     title,
                     message,
-                    work_hours,
+                    work_hours_start,
+                    work_hours_end,
                     work_days,
                     min_time,
                     max_time,
@@ -165,6 +169,6 @@ def db(app, examples):
             # Add a test device
             con.executemany(f"INSERT INTO devices {tuple(examples['devices'][0].keys())} VALUES (?, ?, ?, ?, ?)", [list(i.values()) for i in examples['devices']])
             # Insert a couple reminders into the DB for testing
-            con.executemany(f"INSERT INTO reminders {tuple(examples['reminders'][0].keys())} VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", [list(i.serialize().values()) for i in examples['reminder_objs']])
+            con.executemany(f"INSERT INTO reminders {tuple(examples['reminders'][0].keys())} VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", [list(i.serialize().values()) for i in examples['reminder_objs']])
 
     yield con

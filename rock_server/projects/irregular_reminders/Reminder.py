@@ -21,7 +21,8 @@ import re
     title: "Title",
     message: "Message",
     alive: true,
-    work_hours: ["00:00", "23:59"], <-- TODO: not sure
+    work_hours_start: "00:00",
+    work_hours_end: "23:59",
     work_days: [True, True, True, True, True, True, True],
     min_time: "2025-08-26T12:27:56", <-- TODO: not sure
     max_time: "2025-08-26T12:27:56",
@@ -57,7 +58,8 @@ class Reminder(BaseModel):
     title: str
     message: str
     # period of the day when the alarm is allowed to trigger
-    work_hours: tuple[time, time] | None = None
+    work_hours_start: time | None = None
+    work_hours_end: time | None = None
     # day of the week it's allowed to go off (Monday is 0, Sunday is 6 (to be compliant with datetime.weekday()))
     work_days: list[bool] = [True] * 7
     # min/max datetime of the window when it should go off
@@ -194,7 +196,7 @@ class Reminder(BaseModel):
             raise ValueError("mean must be provided for EXPONENTIAL distribution")
         if not len(self.work_days):
             raise ValueError("work_days must not be empty")
-        if self.work_hours and (self.work_hours[0] > self.work_hours[1]):
+        if self.work_hours_start and self.work_hours_end and self.work_hours_start > self.work_hours_end:
             raise ValueError("work_hours must be in order")
         if self.min_time and self.max_time and self.min_time > self.max_time:
             raise ValueError("min_time must be before max_time")
@@ -222,7 +224,8 @@ class Reminder(BaseModel):
             "version": 1,
             "title": self.title,
             "message": self.message,
-            "work_hours": f'{self.work_hours[0].strftime("%H:%M")},{self.work_hours[1].strftime("%H:%M")}' if self.work_hours else None,
+            "work_hours_start": self.work_hours_start.strftime("%H:%M") if self.work_hours_start else None,
+            "work_hours_end": self.work_hours_end.strftime("%H:%M") if self.work_hours_end else None,
             "work_days": ",".join(map(str, map(int, self.work_days))),
             "min_time": self.min_time.isoformat() if self.min_time else None,
             "max_time": self.max_time.isoformat() if self.max_time else None,
@@ -248,17 +251,15 @@ class Reminder(BaseModel):
             raise ValueError("Empty row given")
         # This is the order of the columns in the db
         data = dict(zip([
-            'id', 'version', 'title', 'message', 'work_hours', 'work_days',
+            'id', 'version', 'title', 'message', 'work_hours_start', 'work_hours_end', 'work_days',
             'min_time', 'max_time', 'dist', 'dist_params', 'repeat', 'spacing_min',
             'spacing_max', 'alive', 'last_trigger_time', 'next_trigger_time',
             'device_id'
         ], row))
         data['work_days'] = [bool(int(x)) for x in data['work_days'].split(',')]
         data['dist_params'] = json.loads(data['dist_params'])
-        data['work_hours'] = (
-            time.fromisoformat(data['work_hours'].split(',')[0]),
-            time.fromisoformat(data['work_hours'].split(',')[1])
-        ) if data['work_hours'] else None
+        data['work_hours_start'] = time.fromisoformat(data['work_hours_start']) if data['work_hours_start'] else None
+        data['work_hours_end'] = time.fromisoformat(data['work_hours_end']) if data['work_hours_end'] else None
         # data['min_time'] = datetime.fromisoformat(data['min_time'])
         # data['max_time'] = datetime.fromisoformat(data['max_time'])
         # data['spacing_min'] = Reminder.cast_timedelta(data['spacing_min'])
@@ -291,9 +292,9 @@ class Reminder(BaseModel):
             now = datetime.now()
 
         # trigger_work_hours
-        if self.work_hours and not (
-            self.work_hours[0] <= now.time() <= self.work_hours[1]
-        ):
+        if self.work_hours_start and not self.work_hours_start <= now.time():
+            return False
+        if self.work_hours_end and not now.time() <= self.work_hours_end:
             return False
 
         # trigger_work_days
@@ -345,7 +346,7 @@ class Reminder(BaseModel):
             # If it's not a work day, we need to wait until the next work day
             if ((self.work_days and not self.work_days[next_time.weekday()]) or
                 # Or, if it is a work day, but work hours have already been past, we still need to wait until the next work day
-                (self.work_hours and next_time.time() >= self.work_hours[1])):
+                (self.work_hours_start and next_time.time() >= self.work_hours_start)):
                 # Reset the hour to the start of the next day
                 next_time = (next_time + timedelta(days=1)).replace(
                     hour=0, minute=0, second=0, microsecond=0
@@ -355,10 +356,10 @@ class Reminder(BaseModel):
                     next_time += timedelta(days=1)
 
             # it's now a work day, but work hours haven't started yet
-            if self.work_hours and next_time.time() < self.work_hours[0]:
+            if self.work_hours_start and next_time.time() < self.work_hours_start:
                 next_time = next_time.replace(
-                    hour=self.work_hours[0].hour,
-                    minute=self.work_hours[0].minute,
+                    hour=self.work_hours_start.hour,
+                    minute=self.work_hours_start.minute,
                     second=0,
                     microsecond=0,
                 )
@@ -441,7 +442,7 @@ class Reminder(BaseModel):
     def __hash__(self):
         return hash(self.id)
 
-# Throw some tests together
+# Throw some quick tests together
 if __name__ == "__main__":
     r = Reminder.from_client(dict(
         id=str(uuid.uuid4()),
@@ -449,7 +450,8 @@ if __name__ == "__main__":
         title="Test",
         message="This is a test",
         work_days=[True] * 7,
-        work_hours=["09:00", "17:00"],
+        work_hours_start="09:00",
+        work_hours_end="17:00",
         min_time="2025-08-26T09:00:00",
         max_time="2025-08-26T17:00:00",
         dist='normal',
