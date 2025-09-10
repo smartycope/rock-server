@@ -30,7 +30,8 @@ with sqlite3.connect(DB) as con:
             version,
             title,
             message,
-            work_hours,
+            work_hours_start,
+            work_hours_end,
             work_days,
             min_time,
             max_time,
@@ -161,4 +162,7 @@ def get_reminders(device_id: str):
     with sqlite3.connect(DB) as con:
         # cols = [row[1] for row in con.execute("PRAGMA table_info(reminders)") if row[1] != "device_id"]
         # All deserializing does is basically adds dictionary keys to a tuple
-        return [Reminder.from_db(row).serialize(False) for row in con.execute("SELECT * FROM reminders WHERE device_id = ?", (device_id,)).fetchall()]
+        data = [Reminder.from_db(row).serialize(False) for row in con.execute("SELECT * FROM reminders WHERE device_id = ?", (device_id,)).fetchall()]
+        log.debug("Returning %s reminders for device %s", len(data), device_id)
+        return data
+
