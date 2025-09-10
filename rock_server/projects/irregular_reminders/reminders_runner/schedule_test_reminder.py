@@ -1,12 +1,21 @@
 import requests
 import json
 import datetime
+import argparse
 
-run_at = datetime.datetime.now() + datetime.timedelta(seconds=5)
+
+parser = argparse.ArgumentParser()
+parser.add_argument("device_id", type=str)
+parser.add_argument("--seconds", type=int, default=5)
+parser.add_argument("--title", type=str, default="Test Reminder")
+parser.add_argument("--message", type=str, default="Hello world!")
+args = parser.parse_args()
+
+run_at = datetime.datetime.now() + datetime.timedelta(seconds=args.seconds)
 job_data = {
-    "id": f"notify-{42}-{int(run_at.timestamp())}",
-    "func": "app:send_push_notification",  # module:function
-    "args": [42, "Hello from Flask!", "Test Reminder"],
+    "id": f"notify-{args.device_id}-{int(run_at.timestamp())}",
+    "func": "app:send_push_notification",
+    "args": [args.device_id, args.title, args.message],
     "trigger": "date",
     "run_date": run_at.isoformat()
 }
