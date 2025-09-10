@@ -38,6 +38,7 @@ def pretty_timedelta(td: timedelta) -> str:
     """ Convert a timedelta to a human-readable string """
     return f"{td.days}d {td.seconds // 3600}h {(td.seconds // 60) % 60}m {td.seconds % 60}s"
 
+# TODO: add timezones
 class Reminder(BaseModel):
     """ A complex, non-standard reminder with many parameters
         Does not trigger itself.
@@ -202,6 +203,8 @@ class Reminder(BaseModel):
             raise ValueError("min_time must be before max_time")
         if self.spacing_min and self.spacing_max and self.spacing_min > self.spacing_max:
             raise ValueError("spacing_min must be before spacing_max")
+        if not any(self.work_days):
+            raise ValueError("work_days must not be all False")
 
         # Validate & cast dist_params
         if self.dist != Reminder.Distribution.UNIFORM:

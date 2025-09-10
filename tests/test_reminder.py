@@ -35,7 +35,7 @@ class TestReminder:
     def test_serialization(self, app, examples, db):
         """Test serialization and deserialization of the reminder"""
         Reminder = get_reminder(app)
-        data = examples['reminder_objs'][0].serialize()
+        data = examples['reminder_objs'][1].serialize()
 
         reminder = Reminder.from_db(data.values())
 
@@ -44,29 +44,28 @@ class TestReminder:
             assert field[1] in data
 
         # Check that the ID is preserved
-        assert str(reminder.id) == str(examples['reminder_objs'][0].id)
-        assert reminder.version == examples['reminder_objs'][0].version
-        assert str(reminder.device_id) == str(examples['reminder_objs'][0].device_id)
-        assert reminder.title == examples['reminder_objs'][0].title
-        assert reminder.message == examples['reminder_objs'][0].message
-        assert reminder.work_hours_start == examples['reminder_objs'][0].work_hours_start
-        assert reminder.work_hours_end == examples['reminder_objs'][0].work_hours_end
-        assert reminder.work_days == examples['reminder_objs'][0].work_days
-        assert reminder.min_time == examples['reminder_objs'][0].min_time
-        assert reminder.max_time == examples['reminder_objs'][0].max_time
-        assert reminder.dist == examples['reminder_objs'][0].dist
-        assert reminder.dist_params == examples['reminder_objs'][0].dist_params
-        assert reminder.repeat == examples['reminder_objs'][0].repeat
-        assert reminder.spacing_min == examples['reminder_objs'][0].spacing_min
-        assert reminder.spacing_max == examples['reminder_objs'][0].spacing_max
-        assert reminder.alive == examples['reminder_objs'][0].alive
-        assert reminder.last_trigger_time == examples['reminder_objs'][0].last_trigger_time
-        assert reminder.next_trigger_time == examples['reminder_objs'][0].next_trigger_time
-        assert reminder == examples['reminder_objs'][0]
+        assert str(reminder.id) == str(examples['reminder_objs'][1].id)
+        assert reminder.version == examples['reminder_objs'][1].version
+        assert str(reminder.device_id) == str(examples['reminder_objs'][1].device_id)
+        assert reminder.title == examples['reminder_objs'][1].title
+        assert reminder.message == examples['reminder_objs'][1].message
+        assert reminder.work_hours_start == examples['reminder_objs'][1].work_hours_start
+        assert reminder.work_hours_end == examples['reminder_objs'][1].work_hours_end
+        assert reminder.work_days == examples['reminder_objs'][1].work_days
+        assert reminder.min_time == examples['reminder_objs'][1].min_time
+        assert reminder.max_time == examples['reminder_objs'][1].max_time
+        assert reminder.dist == examples['reminder_objs'][1].dist
+        assert reminder.dist_params == examples['reminder_objs'][1].dist_params
+        assert reminder.repeat == examples['reminder_objs'][1].repeat
+        assert reminder.spacing_min == examples['reminder_objs'][1].spacing_min
+        assert reminder.spacing_max == examples['reminder_objs'][1].spacing_max
+        assert reminder.alive == examples['reminder_objs'][1].alive
+        assert reminder.last_trigger_time == examples['reminder_objs'][1].last_trigger_time
+        assert reminder.next_trigger_time == examples['reminder_objs'][1].next_trigger_time
+        assert reminder == examples['reminder_objs'][1]
 
-        # Check that work_hours are serialized back to strings
-        assert type(reminder.work_hours_start) == type(examples['reminder_objs'][0].work_hours_start), f"Expected {type(examples['reminder_objs'][0].work_hours_start)}, got {type(reminder.work_hours_start)}"
-        assert type(reminder.work_hours_end) == type(examples['reminder_objs'][0].work_hours_end), f"Expected {type(examples['reminder_objs'][0].work_hours_end)}, got {type(reminder.work_hours_end)}"
+        assert type(reminder.work_hours_start) == type(examples['reminder_objs'][1].work_hours_start), f"Expected {type(examples['reminder_objs'][1].work_hours_start)}, got {type(reminder.work_hours_start)}"
+        assert type(reminder.work_hours_end) == type(examples['reminder_objs'][1].work_hours_end), f"Expected {type(examples['reminder_objs'][1].work_hours_end)}, got {type(reminder.work_hours_end)}"
 
     def test_create_reminder_with_minimal_fields(self, app, examples):
         """Test creating a reminder with only required fields"""

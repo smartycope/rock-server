@@ -17,6 +17,14 @@ log = current_app.logger
 DB = current_app.config['DATABASE']
 
 with sqlite3.connect(DB) as con:
+    # CREATE TABLE IF NOT EXISTS jobs (
+        #     id TEXT PRIMARY KEY,
+        #     title,
+        #     message,
+        #     -- next_trigger_time, I don't think this goes here?
+        #     device_id,
+        #     FOREIGN KEY (device_id) REFERENCES devices(device_id)
+        # );
     con.executescript("""BEGIN;
         CREATE TABLE IF NOT EXISTS devices (
             device_id TEXT PRIMARY KEY,

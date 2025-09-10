@@ -3,6 +3,7 @@ import traceback
 import subprocess
 import git
 import logging
+import requests
 import psutil
 import os
 import time
@@ -92,6 +93,10 @@ def info():
             "last_commit_msg": repo.head.commit.message,
             "last_commit_time": time.strftime("%m-%d-%Y %H:%M:%S", time.localtime(repo.head.commit.authored_date)),
             "last_commit_age": time.strftime("%H:%M:%S", time.localtime(time.time() - repo.head.commit.authored_date)),
+            "irregular_reminders": {
+                "status": requests.get("http://localhost:5050/", timeout=5).json(),
+                "currently_running_jobs": requests.get("http://localhost:5050/scheduler/jobs", timeout=5).json()
+            },
         }, 200
 
 @bp.route("/install/<package>", methods=["POST"])
@@ -156,13 +161,13 @@ def format_logs(lines, threshold):
         # Color the levelname
         match levelname:
             case "DEBUG":
-                levelname = "<span style='color: gray;'>DEBUG</span>"
+                levelname = "<span style='color: gray;'>DEBUG  </span>"
             case "INFO":
-                levelname = "<span style='color: blue;'>INFO</span>"
+                levelname = "<span style='color: blue;'>INFO   </span>"
             case "WARNING":
                 levelname = "<span style='color: orange;'>WARNING</span>"
             case "ERROR":
-                levelname = "<span style='color: red;'>ERROR</span>"
+                levelname = "<span style='color: red;'>ERROR  </span>"
 
         if message.startswith("Request") or message.startswith("Response"):
             message = message.replace("http://localhost:5000", "", 1)
