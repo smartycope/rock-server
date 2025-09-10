@@ -221,7 +221,7 @@ def add_spacer():
 
 def get_system_logs():
     try:
-        with open("/var/log/syslog", 'r') as f:
+        with open("system.log", 'r') as f:
             lines = format_logs(f.readlines(), logging._nameToLevel[level])
     except FileNotFoundError:
         lines = ["Log file not found."]
@@ -229,7 +229,7 @@ def get_system_logs():
 
 def get_reminder_runner_logs():
     try:
-        with open("/var/log/reminder-runner.log", 'r') as f:
+        with open("rock_server/projects/irregular_reminders/reminders_runner/reminder_runner.log", 'r') as f:
             lines = format_logs(f.readlines(), logging._nameToLevel[level])
     except FileNotFoundError:
         lines = ["Log file not found."]
