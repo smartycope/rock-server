@@ -2,11 +2,13 @@ import sqlite3
 from time import time
 from typing import Literal
 
-from flask import Blueprint, current_app, request
+from flask import Blueprint, current_app, request, render_template
 from pydantic import BaseModel, ValidationError
 
 from rock_server.utils import validate_json
 from .utils import calculate_next_reminder
+import logging
+from rock_server.utils import format_logs
 
 from .Reminder import Reminder
 from .globals import next_reminder
@@ -56,6 +58,20 @@ with sqlite3.connect(DB) as con:
         );
     END;
     """)
+
+
+@bp.get('/logs/<level>')
+def get_logs(level):
+    level = level.upper()
+    if level not in logging._nameToLevel:
+        return f'Invalid level: {level}', 400
+    try:
+        with open("rock_server/projects/irregular_reminders/reminders_runner/reminder_runner.log", 'r') as f:
+            lines = format_logs(f.readlines(), logging._nameToLevel[level])
+    except FileNotFoundError:
+        lines = ["Log file not found."]
+    return render_template('logs_template.html', logs=lines)
+
 
 API_VERSION = "v1"
 VERSION = int(API_VERSION[1:])

@@ -10,6 +10,7 @@ import time
 import datetime as dt
 from pathlib import Path
 import threading
+from .utils import format_logs, pretty_timedelta
 
 bp = Blueprint("system_endpoints", __name__)
 
@@ -144,69 +145,6 @@ def logs():
     """ The default log level is INFO """
     return redirect(url_for(".get_logs", level='info'))
 
-def pretty_timedelta(td):
-    """ Convert a timedelta to a human readable string """
-    if td.days > 0:
-        return f"{td.days} days"
-    elif td.seconds > 3600:
-        return f"{td.seconds // 3600} hours"
-    elif td.seconds > 60:
-        return f"{td.seconds // 60} minutes"
-    else:
-        return f"{td.seconds} seconds"
-
-def format_logs(lines, threshold):
-    """ Format the logs """
-    def format_line(parts):
-        try:
-            raw_date = parts[0]
-            raw_time = parts[1]
-            datetime = dt.datetime.strptime(f"{raw_date} {raw_time}", "%Y-%m-%d %H:%M:%S,%f")
-            ago = dt.datetime.now() - datetime
-            levelname = parts[3]
-            message = ' '.join(parts[5:])
-        except Exception:
-            return f"<pre>{line}</pre>"
-        # Color the levelname
-        match levelname:
-            case "DEBUG":
-                levelname = "<span style='color: gray;'>DEBUG  </span>"
-            case "INFO":
-                levelname = "<span style='color: blue;'>INFO   </span>"
-            case "WARNING":
-                levelname = "<span style='color: orange;'>WARNING</span>"
-            case "ERROR":
-                levelname = "<span style='color: red;'>ERROR  </span>"
-
-        if message.startswith("Request") or message.startswith("Response"):
-            message = message.replace("http://localhost:5000", "", 1)
-            message = message.replace("https://api.smartycope.org", "", 1)
-            message = message.replace("Request", "<span style='font-weight: bold'>⬇️  Request</span>", 1)
-            message = message.replace("Response", "<span style='font-weight: bold'>🔼 Response</span>", 1)
-            message = message.replace("->", "<span style='font-weight: bold'>-></span>", 1)
-            message = message.replace("200 OK", "<span style='color: green'>200 OK</span>", 1)
-
-
-        preamble = f"<span style='color: #dedede;'>{raw_date} {raw_time}</span> {pretty_timedelta(ago)} ago {levelname} "
-        return f"{preamble}: {message}"
-
-    spacer_count = 0
-    for line in reversed(lines):
-        try:
-            parts = line.split(' ')
-            # It's a spacer
-            if len(parts) == 1:
-                spacer_count += 1
-                yield line + f"<span style='color: #dedede;'>Spacer #{spacer_count}</span>"
-                continue
-            levelname = parts[3]
-            if logging._nameToLevel.get(levelname, 100) >= threshold:
-                yield format_line(parts)
-        except Exception as err:
-            # continue  # skip malformed lines
-            # log.error("Failed to format log line: %s", line)
-            yield f"Error parsing line: {str(err)}\t{line}"#<br/><pre>{traceback.format_exc().replace('\n', '<br/>')}</pre>"
-
 @bp.delete('/logs/')
 def delete_logs():
     with open(current_app.LOG_FILE, 'w') as f:
@@ -219,17 +157,13 @@ def add_spacer():
         f.write("<hr/>\n")
     return "Spacer added", 200
 
-def get_system_logs():
+@bp.get('/logs/system/<level>/')
+def get_system_logs(level):
+    level = level.upper()
+    if level not in logging._nameToLevel:
+        return f'Invalid level: {level}', 400
     try:
         with open("system.log", 'r') as f:
-            lines = format_logs(f.readlines(), logging._nameToLevel[level])
-    except FileNotFoundError:
-        lines = ["Log file not found."]
-    return render_template('logs_template.html', logs=lines)
-
-def get_reminder_runner_logs():
-    try:
-        with open("rock_server/projects/irregular_reminders/reminders_runner/reminder_runner.log", 'r') as f:
             lines = format_logs(f.readlines(), logging._nameToLevel[level])
     except FileNotFoundError:
         lines = ["Log file not found."]
@@ -239,12 +173,6 @@ def get_reminder_runner_logs():
 def get_logs(level):
     level = level.upper()
 
-    # TODO: something like this probably
-    # journalctl -u rock-server.service -q -f
-    if level == "SYSTEM":
-        return get_system_logs()
-    if level == "REMINDERS":
-        return get_reminder_runner_logs()
     if level not in logging._nameToLevel:
         return f'Invalid level: {level}', 400
 
