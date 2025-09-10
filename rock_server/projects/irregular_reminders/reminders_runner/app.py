@@ -20,10 +20,11 @@ import logging
 from flask_apscheduler import APScheduler
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 import sqlite3
+import os
 
 app = Flask(__name__)
 
-DB = "/home/rock/rock-server/reminders.db"
+DB = "/home/rock/rock-server/reminders.db" if os.uname().nodename == "rockpi-4b" else "/home/zeke/hello/rock-server/rock_server/reminders.db"
 log = app.logger
 LOG_FILE = 'reminder_thread.log'
 file_handler = RotatingFileHandler(LOG_FILE, maxBytes=1024*1024, backupCount=1) # 1MB
@@ -34,7 +35,7 @@ app.logger.addHandler(file_handler)
 
 class Config:
     ALLOWED_HOSTS = ['localhost', '127.0.0.1']
-    SCHEDULER_JOBSTORES = {"default": SQLAlchemyJobStore(url=f"sqlite://{DB}", tablename='jobs')}
+    SCHEDULER_JOBSTORES = {"default": SQLAlchemyJobStore(url=f"sqlite:///{DB}", tablename='jobs')}
     # SCHEDULER_EXECUTORS = {"default": {"type": "threadpool", "max_workers": 8}}
     # SCHEDULER_JOB_DEFAULTS = {"coalesce": False, "max_instances": 3}
     SCHEDULER_API_ENABLED = True
