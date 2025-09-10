@@ -62,7 +62,7 @@ with app.app_context():
         return render_template('error.html', error=e), 404
 
 
-    from rock_server.projects.irregular_reminders import bp as reminders_bp
+    from rock_server.projects.irregular_reminders.main_server import bp as reminders_bp
     app.register_blueprint(reminders_bp, url_prefix="/irregular-reminders")
 
     # Create a test key if none exists

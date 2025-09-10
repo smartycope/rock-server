@@ -6,11 +6,11 @@ from flask import Blueprint, current_app, request
 from pydantic import BaseModel, ValidationError
 
 from rock_server.utils import validate_json
+from .utils import calculate_next_reminder
 
 from .Reminder import Reminder
 from .globals import next_reminder
 # This should start the reminder thread
-from .reminder_thread import calculate_next_reminder
 
 bp = Blueprint("non_standard_reminders", __name__)
 log = current_app.logger

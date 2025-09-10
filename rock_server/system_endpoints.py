@@ -79,12 +79,24 @@ def info():
     proc = psutil.Process(os.getpid())
     start_time = proc.create_time()
     uptime_seconds = time.time() - start_time
+
+    irregular_reminders_info = {}
+    try:
+        irregular_reminders_info['status'] = requests.get("http://localhost:5050/", timeout=5).json()
+    except Exception as e:
+        irregular_reminders_info['status'] = 'Not running'
+    else:
+        try:
+            irregular_reminders_info['currently_running_jobs'] = requests.get("http://localhost:5050/scheduler/jobs", timeout=5).json()
+        except Exception as e:
+            irregular_reminders_info['currently_running_jobs'] = f'Failed to get jobs: {str(e)}'
+
     return {
             "status": "ok",
             "server_started": time.strftime("%m-%d-%Y %H:%M:%S", time.localtime(start_time)),
             "uptime_seconds": uptime_seconds,
             "uptime_human": time.strftime("%H:%M:%S", time.localtime(uptime_seconds)),
-            "current_packages": subprocess.check_output([PYTHON_BINARY, "-m", "pip", "freeze"]).decode("utf-8").split("\n"),
+            "current_packages": subprocess.check_output([PYTHON_BINARY, "-m", "pip", "freeze"]).decode("utf-8").split("\n") if not current_app.DEBUG else [],
             "storage_available": str(round(psutil.disk_usage("/").free / 1024 / 1024 / 1024, 2)) + " GB",
             "storage_total": str(round(psutil.disk_usage("/").total / 1024 / 1024 / 1024, 2)) + " GB",
             "storage_percent": psutil.disk_usage("/").percent,
@@ -93,10 +105,7 @@ def info():
             "last_commit_msg": repo.head.commit.message,
             "last_commit_time": time.strftime("%m-%d-%Y %H:%M:%S", time.localtime(repo.head.commit.authored_date)),
             "last_commit_age": time.strftime("%H:%M:%S", time.localtime(time.time() - repo.head.commit.authored_date)),
-            "irregular_reminders": {
-                "status": requests.get("http://localhost:5050/", timeout=5).json(),
-                "currently_running_jobs": requests.get("http://localhost:5050/scheduler/jobs", timeout=5).json()
-            },
+            "irregular_reminders": irregular_reminders_info,
         }, 200
 
 @bp.route("/install/<package>", methods=["POST"])
@@ -210,6 +219,22 @@ def add_spacer():
         f.write("<hr/>\n")
     return "Spacer added", 200
 
+def get_system_logs():
+    try:
+        with open("/var/log/syslog", 'r') as f:
+            lines = format_logs(f.readlines(), logging._nameToLevel[level])
+    except FileNotFoundError:
+        lines = ["Log file not found."]
+    return render_template('logs_template.html', logs=lines)
+
+def get_reminder_runner_logs():
+    try:
+        with open("/var/log/reminder-runner.log", 'r') as f:
+            lines = format_logs(f.readlines(), logging._nameToLevel[level])
+    except FileNotFoundError:
+        lines = ["Log file not found."]
+    return render_template('logs_template.html', logs=lines)
+
 @bp.get('/logs/<level>/')
 def get_logs(level):
     level = level.upper()
@@ -217,21 +242,9 @@ def get_logs(level):
     # TODO: something like this probably
     # journalctl -u rock-server.service -q -f
     if level == "SYSTEM":
-        # Display the process logs for rock-server
-        lines = []
-        # try:
-        #     with open("/var/log/syslog", 'r') as f:
-        #         for line in f:
-        #             try:
-        #                 levelname = line.split(' - ')[1]
-        #                 if logging._nameToLevel.get(levelname, 100) >= threshold:
-        #                     lines.append(line.strip())
-        #             except Exception:
-        #                 continue  # skip malformed lines
-        # except FileNotFoundError:
-        #     lines.append("Log file not found.")
-        return render_template('logs_template.html', logs=reversed(lines))
-
+        return get_system_logs()
+    if level == "REMINDERS":
+        return get_reminder_runner_logs()
     if level not in logging._nameToLevel:
         return f'Invalid level: {level}', 400
 

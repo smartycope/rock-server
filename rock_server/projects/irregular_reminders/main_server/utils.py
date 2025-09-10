@@ -3,8 +3,8 @@ Functions that aren't endpoints
 """
 
 from datetime import datetime
-from sqlite3 import Connection
 from flask import current_app
+from sqlite3 import Connection
 from .Reminder import Reminder
 log = current_app.logger
 
@@ -21,7 +21,7 @@ def calculate_next_reminder(con:Connection):
         log.info("Next reminder is %s, set to go off in %s", n, n.next_trigger_time - datetime.now())
         return n
 
-def get_token(device_id: str, con:sqlite3.Connection):
+def get_token(device_id: str, con:Connection):
     """ Get a device's token from the database """
     try:
         token = con.execute(
