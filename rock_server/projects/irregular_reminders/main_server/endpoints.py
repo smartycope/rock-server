@@ -22,7 +22,7 @@ with sqlite3.connect(DB) as con:
         CREATE TABLE IF NOT EXISTS jobs (
             id TEXT PRIMARY KEY,
             next_run_time,
-            job_state,
+            job_state
         );
         CREATE TABLE IF NOT EXISTS devices (
             device_id TEXT PRIMARY KEY,
