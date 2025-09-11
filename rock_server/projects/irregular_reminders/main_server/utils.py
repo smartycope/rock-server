@@ -3,12 +3,12 @@ Functions that aren't endpoints
 """
 
 from datetime import datetime
-from flask import current_app
 from sqlite3 import Connection
-from .Reminder import Reminder
 import requests
+from flask import current_app
+from .Reminder import Reminder
 
-log = current_app.logger8ef1206bad4b76b1
+log = current_app.logger
 RUNNER_URL = "http://localhost:5050"
 
 def calculate_next_reminder(con:Connection):
