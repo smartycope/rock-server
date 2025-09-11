@@ -16,7 +16,7 @@ DEVICE_ID = "__test__"
 if __name__ == "__main__":
     # First insert a fake device
     con.execute("INSERT INTO devices (device_id, token, platform, app_version, last_updated) VALUES (?, ?, ?, ?, ?)",
-        (DEVICE_ID, "not-a-real-token", "test", "1", time())
+        (DEVICE_ID, "not-a-real-token", "test", "1", datetime.now().isoformat())
     )
     con.commit()
 
