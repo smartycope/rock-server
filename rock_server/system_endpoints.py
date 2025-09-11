@@ -88,6 +88,10 @@ def info():
         irregular_reminders_info['status'] = 'Not running'
     else:
         try:
+            irregular_reminders_info['process_info'] = requests.get("http://localhost:5050/scheduler", timeout=5).json()
+        except Exception as e:
+            irregular_reminders_info['process_info'] = f'Failed to get process info: {str(e)}'
+        try:
             irregular_reminders_info['currently_running_jobs'] = requests.get("http://localhost:5050/scheduler/jobs", timeout=5).json()
         except Exception as e:
             irregular_reminders_info['currently_running_jobs'] = f'Failed to get jobs: {str(e)}'

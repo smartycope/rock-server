@@ -42,6 +42,8 @@ def pretty_timedelta(td: timedelta) -> str:
 class Reminder(BaseModel):
     """ A complex, non-standard reminder with many parameters
         Does not trigger itself.
+        This would make more sense as a subclass using some ORM (like a Django model),
+        but I wantedt to do it by hand to learn SQLite better
     """
     # This is the code version of this class
     __version__ = 4
@@ -82,6 +84,8 @@ class Reminder(BaseModel):
     last_trigger_time: datetime | None = None
     # This gets calcuated immediately in __init__
     next_trigger_time: datetime | None = None
+    # The job id this reminder is associated with, or None if it's not currently scheduled
+    job_id: str | None = None
 
 
     # Class variables
@@ -438,6 +442,22 @@ class Reminder(BaseModel):
         if (self.next_trigger_time - datetime.now()).total_seconds() <= self.allowed_resolution_sec:
             return self._trigger(conn)
         return False
+
+    def load_to_db(self, conn:sqlite3.Connection):
+        """ Load the reminder to the database """
+        data = self.serialize()
+        # TODO: this is potentially insecure, letting header keys insert malicious SQL code
+        # If the PK already exists, update it
+        conn.execute(f"INSERT OR REPLACE INTO reminders {tuple(data.keys())} VALUES ({', '.join(['?'] * len(data))})", list(data.values()))
+        conn.commit()
+
+    @classmethod
+    def load_from_db(cls, conn:sqlite3.Connection, id:str):
+        """ Load the reminder from the database """
+        data = conn.execute("SELECT * FROM reminders WHERE id = ?", (id,)).fetchone()
+        if data is None:
+            raise ValueError(f"Reminder {id} not found")
+        return cls.from_db(data)
 
     def __eq__(self, other):
         return str(self.id) == str(other.id)

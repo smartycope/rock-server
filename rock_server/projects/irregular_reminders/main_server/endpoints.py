@@ -1,17 +1,16 @@
+import logging
 import sqlite3
 from time import time
 from typing import Literal
 
-from flask import Blueprint, current_app, request, render_template
+from flask import Blueprint, current_app, render_template, request
 from pydantic import BaseModel, ValidationError
 
-from rock_server.utils import validate_json
-from .utils import calculate_next_reminder
-import logging
-from rock_server.utils import format_logs
+from rock_server.utils import format_logs, validate_json
 
 from .Reminder import Reminder
-from .globals import next_reminder
+from .utils import (send_to_reminder_runner, update_reminder_runner, delete_from_reminder_runner)
+
 # This should start the reminder thread
 
 bp = Blueprint("non_standard_reminders", __name__)
@@ -19,15 +18,12 @@ log = current_app.logger
 DB = current_app.config['DATABASE']
 
 with sqlite3.connect(DB) as con:
-    # CREATE TABLE IF NOT EXISTS jobs (
-        #     id TEXT PRIMARY KEY,
-        #     title,
-        #     message,
-        #     -- next_trigger_time, I don't think this goes here?
-        #     device_id,
-        #     FOREIGN KEY (device_id) REFERENCES devices(device_id)
-        # );
     con.executescript("""BEGIN;
+        CREATE TABLE IF NOT EXISTS jobs (
+            id TEXT PRIMARY KEY,
+            next_run_time,
+            job_state,
+        );
         CREATE TABLE IF NOT EXISTS devices (
             device_id TEXT PRIMARY KEY,
             token,
@@ -54,10 +50,11 @@ with sqlite3.connect(DB) as con:
             last_trigger_time,
             next_trigger_time,
             device_id,
-            FOREIGN KEY (device_id) REFERENCES devices(device_id)
+            job_id,
+            FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE SET NULL, -- If the job goes off, we need to know
+            FOREIGN KEY (device_id) REFERENCES devices(device_id) ON DELETE CASCADE -- If the device somehow gets deleted (which it isn't set to do), delete all associated reminders
         );
-    END;
-    """)
+    END;""")
 
 
 @bp.get('/logs/<level>')
@@ -112,8 +109,6 @@ def register_device(data, device_id: str):
 @bp.post(ENDPOINTS["scheduleReminder"])
 def schedule_reminder(device_id: str):
     """ Receive a reminder and add it to the db """
-    global next_reminder
-
     log.debug("Received reminders schedule request")
     try:
         reminder = Reminder(**request.json, device_id=device_id, version=VERSION)
@@ -127,54 +122,54 @@ def schedule_reminder(device_id: str):
                 pass
         return {"errors": errs}, 400
 
-    data = reminder.serialize()
     with sqlite3.connect(DB) as con:
-        # TODO: this is potentially insecure, letting header keys insert malicious SQL code
-        con.execute(f"INSERT INTO reminders {tuple(data.keys())} VALUES ({', '.join(['?'] * len(data))})", list(data.values()))
+        reminder.load_to_db(con)
 
-    if next_reminder is None or reminder.next_trigger_time < next_reminder.next_trigger_time:
-        next_reminder = reminder
-        log.debug("Next reminder changed to %s", next_reminder)
+    send_to_reminder_runner(reminder)
 
     return {"status": "ok"}, 200
 
 @bp.put(ENDPOINTS["updateReminder"])
 def update_reminder(device_id: str, id):
     """ Set a reminder to alive or dead """
-    global next_reminder
-    log.debug("Updating reminder %s", id)
     if len(request.json) == 0:
         return 201
+
     with sqlite3.connect(DB) as con:
-        # con.execute(
-        #     "UPDATE reminders SET ? WHERE id = ? AND device_id = ?",
-        #     (*request.json.items(), str(id), device_id)
-        # )
+        # I don't see a reason this shouldn't work?
+        reminder = Reminder.load_from_db(con, id)
+        reminder.__dict__.update(request.json)
+        reminder.load_to_db(con)
+
+        # This does work, but the above is cleaner
+        """
         # Create the SET clause with placeholders
         set_clause = ', '.join([f"{k} = ?" for k in request.json.keys()])
         # Execute the update with values in the correct order
         con.execute(
             f"UPDATE reminders SET {set_clause} WHERE id = ? AND device_id = ?",
             (*request.json.values(), str(id), device_id)
-        )
+        ) """
 
-    if next_reminder is None or next_reminder.id == id:
-        next_reminder = calculate_next_reminder(con)
+    # don't forget to update the runner process
+    update_reminder_runner(reminder)
 
     return {"status": "ok"}, 200
 
 @bp.delete(ENDPOINTS["deleteReminder"])
-def delete_reminder(device_id: str, id):
+def delete_reminder(device_id: str, id: str):
     """ Delete a reminder from the db """
-    global next_reminder
-    log.debug("Deleting reminder %s", id)
     with sqlite3.connect(DB) as con:
         con.execute(
             "DELETE FROM reminders WHERE id = ? AND device_id = ?",
             (str(id), device_id)
         )
-    if next_reminder is None or next_reminder.id == id:
-        next_reminder = calculate_next_reminder(con)
+
+    # We need the reminder instance to delete it from the runner process, because it needs the job_id FK
+    delete_from_reminder_runner(Reminder.load_from_db(con, id))
+
+    log.info("Deleted reminder with id %s", id)
+
     return {"status": "ok"}, 200
 
 @bp.get(ENDPOINTS["getReminders"])
