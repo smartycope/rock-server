@@ -3,7 +3,7 @@ import sqlite3
 from time import time
 from typing import Literal
 
-from flask import Blueprint, current_app, render_template, request
+from flask import Blueprint, current_app, render_template, request, url_for
 from pydantic import BaseModel, ValidationError
 
 from rock_server.utils import format_logs, validate_json
