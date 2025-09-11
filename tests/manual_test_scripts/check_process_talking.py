@@ -15,7 +15,8 @@ DEVICE_ID = "__test__"
 
 if __name__ == "__main__":
     # First insert a fake device
-    con.execute("INSERT INTO devices (device_id, token, platform, app_version, last_updated) VALUES (?, ?, ?, ?, ?)",
+    # If it's already there, update it, since that just means we've rerun the script
+    con.execute("INSERT OR REPLACE INTO devices (device_id, token, platform, app_version, last_updated) VALUES (?, ?, ?, ?, ?)",
         (DEVICE_ID, "not-a-real-token", "test", "1", datetime.now().isoformat())
     )
     con.commit()
@@ -42,6 +43,9 @@ if __name__ == "__main__":
     # it should show up in the runner process
     print(requests.get(f"{RUNNER}/jobs", timeout=5).json())
     print('-' * 20)
+
+    # Get the id of the reminder
+    id = con.execute("SELECT id FROM reminders WHERE device_id = ?", (DEVICE_ID,)).fetchone()[0]
 
     # Update it
     requests.put(f"{SERVER}/reminders/{DEVICE_ID}/{id}", json={"alive": False}, timeout=5)
