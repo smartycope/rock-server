@@ -6,7 +6,7 @@ from typing import Literal
 from flask import Blueprint, current_app, render_template, request, url_for, Response, stream_with_context
 from pydantic import BaseModel, ValidationError
 
-from rock_server.utils import format_logs, validate_json
+from rock_server.utils import format_logs, validate_json, format_line
 
 from .Reminder import Reminder
 from .utils import (send_to_reminder_runner, update_reminder_runner, delete_from_reminder_runner)
