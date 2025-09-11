@@ -22,6 +22,11 @@ job_data = {
 
 resp = requests.post("http://localhost:5050/scheduler/jobs", json=job_data)
 resp.raise_for_status()
+print(resp.json())
+
+print()
+print('-' * 20)
+print()
 
 print(json.dumps(requests.get("http://localhost:5050/scheduler/jobs").json(), indent=2))
 
