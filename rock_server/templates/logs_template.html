@@ -5,8 +5,8 @@
 <body>
     <h1>Logs</h1>
     <h2>Newest first</h2>
-    <button onclick="fetch('/logs/', { method: 'DELETE' }).then(() => location.reload())">Clear Logs</button>
-    <button onclick="fetch('/logs/', { method: 'POST' }).then(() => location.reload())">Add Spacer</button>
+    <button onclick="fetch('{{clear_endpoint}}', { method: 'DELETE' }).then(() => location.reload())">Clear Logs</button>
+    <button onclick="fetch('{{add_spacer_endpoint}}', { method: 'POST' }).then(() => location.reload())">Add Spacer</button>
     <br/>
     <div id="logs">
         {% for log in logs %}
@@ -14,7 +14,7 @@
         {% endfor %}
     </div>
     <script>
-        const source = new EventSource("/logs/stream");
+        const source = new EventSource('{{stream_endpoint}}');
         const logDiv = document.getElementById("logs");
         source.onmessage = (e) => {
             logDiv.innerHTML = e.data + "<br>" + logDiv.innerHTML;

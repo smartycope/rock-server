@@ -16,6 +16,7 @@ from .utils import (send_to_reminder_runner, update_reminder_runner, delete_from
 bp = Blueprint("non_standard_reminders", __name__)
 log = current_app.logger
 DB = current_app.config['DATABASE']
+OUR_LOGS = "rock_server/projects/irregular_reminders/reminders_runner/reminder_runner.log"
 
 with sqlite3.connect(DB) as con:
     con.executescript("""BEGIN;
@@ -55,20 +56,6 @@ with sqlite3.connect(DB) as con:
             FOREIGN KEY (device_id) REFERENCES devices(device_id) ON DELETE CASCADE -- If the device somehow gets deleted (which it isn't set to do), delete all associated reminders
         );
     END;""")
-
-
-@bp.get('/logs/<level>')
-def get_logs(level):
-    level = level.upper()
-    if level not in logging._nameToLevel:
-        return f'Invalid level: {level}', 400
-    try:
-        with open("rock_server/projects/irregular_reminders/reminders_runner/reminder_runner.log", 'r') as f:
-            lines = format_logs(f.readlines(), logging._nameToLevel[level])
-    except FileNotFoundError:
-        lines = ["Log file not found."]
-    return render_template('logs_template.html', logs=lines)
-
 
 API_VERSION = "v1"
 VERSION = int(API_VERSION[1:])
@@ -185,3 +172,51 @@ def get_reminders(device_id: str):
         log.debug("Returning %s reminders for device %s", len(data), device_id)
         return data
 
+
+
+
+# Logs
+
+@bp.delete('/logs/')
+def delete_logs():
+    with open(OUR_LOGS, 'w') as f:
+        f.write("")
+    return "Logs cleared", 200
+
+@bp.post('/logs/')
+def add_spacer():
+    with open(OUR_LOGS, 'a') as f:
+        f.write("<hr/>\n")
+    return "Spacer added", 200
+
+@bp.get("/logs/stream")
+def stream_logs():
+    def generate():
+        with open(OUR_LOGS, 'r') as f:
+            f.seek(0, 2)  # move to end of file
+            while True:
+                line = f.readline()
+                if line:
+                    yield f"data: {format_line(line)}\n\n"
+                else:
+                    time.sleep(0.25)  # don’t busy loop
+    return Response(stream_with_context(generate()), mimetype="text/event-stream")
+
+@bp.get('/logs/<level>/')
+def get_logs(level):
+    level = level.upper()
+
+    if level not in logging._nameToLevel:
+        return f'Invalid level: {level}', 400
+
+    try:
+        with open(OUR_LOGS, 'r') as f:
+            lines = format_logs(f.readlines(), logging._nameToLevel[level])
+    except FileNotFoundError:
+        lines = ["Log file not found."]
+
+    return render_template('logs_template.html',
+        logs=lines, clear_endpoint=url_for(".delete_logs"),
+        add_spacer_endpoint=url_for(".add_spacer"),
+        stream_endpoint=url_for(".stream_logs")
+    )
