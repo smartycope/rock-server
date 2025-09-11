@@ -37,41 +37,44 @@ def pretty_timedelta(td):
     else:
         return f"{td.seconds} seconds"
 
+
+def format_line(line):
+    try:
+        parts = line.split(' ')
+        raw_date = parts[0]
+        raw_time = parts[1]
+        datetime = dt.datetime.strptime(f"{raw_date} {raw_time}", "%Y-%m-%d %H:%M:%S,%f")
+        ago = dt.datetime.now() - datetime
+        levelname = parts[3]
+        message = ' '.join(parts[5:])
+    except Exception:
+        return f"<pre>{line}</pre>"
+    # Color the levelname
+    match levelname:
+        case "DEBUG":
+            levelname = "<span style='color: gray;'>DEBUG  </span>"
+        case "INFO":
+            levelname = "<span style='color: blue;'>INFO   </span>"
+        case "WARNING":
+            levelname = "<span style='color: orange;'>WARNING</span>"
+        case "ERROR":
+            levelname = "<span style='color: red;'>ERROR  </span>"
+
+    if message.startswith("Request") or message.startswith("Response"):
+        message = message.replace("http://localhost:5000", "", 1)
+        message = message.replace("https://api.smartycope.org", "", 1)
+        message = message.replace("Request", "<span style='font-weight: bold'>⬇️  Request</span>", 1)
+        message = message.replace("Response", "<span style='font-weight: bold'>🔼 Response</span>", 1)
+        message = message.replace("->", "<span style='font-weight: bold'>-></span>", 1)
+        message = message.replace("200 OK", "<span style='color: green'>200 OK</span>", 1)
+
+
+    preamble = f"<span style='color: #dedede;'>{raw_date} {raw_time}</span> {pretty_timedelta(ago)} ago {levelname} "
+    return f"{preamble}: {message}"
+
+
 def format_logs(lines, threshold):
     """ Format the logs """
-    def format_line(parts):
-        try:
-            raw_date = parts[0]
-            raw_time = parts[1]
-            datetime = dt.datetime.strptime(f"{raw_date} {raw_time}", "%Y-%m-%d %H:%M:%S,%f")
-            ago = dt.datetime.now() - datetime
-            levelname = parts[3]
-            message = ' '.join(parts[5:])
-        except Exception:
-            return f"<pre>{line}</pre>"
-        # Color the levelname
-        match levelname:
-            case "DEBUG":
-                levelname = "<span style='color: gray;'>DEBUG  </span>"
-            case "INFO":
-                levelname = "<span style='color: blue;'>INFO   </span>"
-            case "WARNING":
-                levelname = "<span style='color: orange;'>WARNING</span>"
-            case "ERROR":
-                levelname = "<span style='color: red;'>ERROR  </span>"
-
-        if message.startswith("Request") or message.startswith("Response"):
-            message = message.replace("http://localhost:5000", "", 1)
-            message = message.replace("https://api.smartycope.org", "", 1)
-            message = message.replace("Request", "<span style='font-weight: bold'>⬇️  Request</span>", 1)
-            message = message.replace("Response", "<span style='font-weight: bold'>🔼 Response</span>", 1)
-            message = message.replace("->", "<span style='font-weight: bold'>-></span>", 1)
-            message = message.replace("200 OK", "<span style='color: green'>200 OK</span>", 1)
-
-
-        preamble = f"<span style='color: #dedede;'>{raw_date} {raw_time}</span> {pretty_timedelta(ago)} ago {levelname} "
-        return f"{preamble}: {message}"
-
     spacer_count = 0
     for line in reversed(lines):
         try:
@@ -83,7 +86,7 @@ def format_logs(lines, threshold):
                 continue
             levelname = parts[3]
             if logging._nameToLevel.get(levelname, 100) >= threshold:
-                yield format_line(parts)
+                yield format_line(line)
         except Exception as err:
             # continue  # skip malformed lines
             # log.error("Failed to format log line: %s", line)

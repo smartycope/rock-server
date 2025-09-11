@@ -1,5 +1,4 @@
-from flask import redirect, request, render_template, send_file, url_for, current_app, Blueprint
-import traceback
+from flask import redirect, render_template, send_file, url_for, current_app, Blueprint, Response, stream_with_context
 import subprocess
 import git
 import logging
@@ -10,7 +9,7 @@ import time
 import datetime as dt
 from pathlib import Path
 import threading
-from .utils import format_logs, pretty_timedelta
+from .utils import format_logs, pretty_timedelta, format_line
 
 bp = Blueprint("system_endpoints", __name__)
 
@@ -173,6 +172,19 @@ def get_system_logs(level):
         lines = ["Log file not found."]
     return render_template('logs_template.html', logs=lines)
 
+@bp.get("/logs/stream")
+def stream_logs():
+    def generate():
+        with open(current_app.LOG_FILE, 'r') as f:
+            f.seek(0, 2)  # move to end of file
+            while True:
+                line = f.readline()
+                if line:
+                    yield f"data: {format_line(line)}\n\n"
+                else:
+                    time.sleep(0.25)  # don’t busy loop
+    return Response(stream_with_context(generate()), mimetype="text/event-stream")
+
 @bp.get('/logs/<level>/')
 def get_logs(level):
     level = level.upper()
@@ -187,4 +199,3 @@ def get_logs(level):
         lines = ["Log file not found."]
 
     return render_template('logs_template.html', logs=lines)
-

@@ -8,9 +8,18 @@
     <button onclick="fetch('/logs/', { method: 'DELETE' }).then(() => location.reload())">Clear Logs</button>
     <button onclick="fetch('/logs/', { method: 'POST' }).then(() => location.reload())">Add Spacer</button>
     <br/>
-
-    {% for log in logs %}
-        {{ log | safe}}<br/>
-    {% endfor %}
+    <div id="logs">
+        {% for log in logs %}
+            {{ log | safe}}<br/>
+        {% endfor %}
+    </div>
+    <script>
+        const source = new EventSource("/logs/stream");
+        const logDiv = document.getElementById("logs");
+        source.onmessage = (e) => {
+            logDiv.innerHTML = e.data + "<br>" + logDiv.innerHTML;
+            logDiv.scrollTop = 0;
+        };
+    </script>
 </body>
 </html>
