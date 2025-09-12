@@ -96,7 +96,7 @@ def register_device(data, device_id: str):
 @bp.post(ENDPOINTS["scheduleReminder"])
 def schedule_reminder(device_id: str):
     """ Receive a reminder and add it to the db """
-    log.debug("Received reminders schedule request")
+    log.log("Received reminders schedule request")
     try:
         reminder = Reminder(**request.json, device_id=device_id, version=VERSION)
     except ValidationError as e:
@@ -108,11 +108,13 @@ def schedule_reminder(device_id: str):
             except KeyError:
                 pass
         return {"errors": errs}, 400
-
+    log.debug("Reminder validated: %s", reminder)
     with sqlite3.connect(DB) as con:
         reminder.load_to_db(con)
+    log.debug("Reminder added to db: %s", reminder)
 
     send_to_reminder_runner(reminder)
+    log.debug("Reminder sent to runner: %s", reminder)
 
     return {"status": "ok"}, 200
 
