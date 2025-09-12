@@ -35,7 +35,7 @@ if __name__ == "__main__":
         "min_time": "2025-09-11T11:15:00",
         "max_time": "2025-09-11T11:15:00",
         "dist": "uniform",
-        "dist_params": {"mean": "1s 1m 1h 1d", "std": "1s 1m 1h 1d"},
+        "dist_params": {},
         "repeat": True,
         "spacing_min": "1s 1m 1h 1d",
         "spacing_max": "1s 1m 1h 1d"
