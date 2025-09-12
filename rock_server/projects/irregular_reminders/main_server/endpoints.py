@@ -98,15 +98,20 @@ def schedule_reminder(device_id: str):
     """ Receive a reminder and add it to the db """
     log.debug("Received reminders schedule request")
     try:
+        log.debug('here1')
         reminder = Reminder(**request.json, device_id=device_id, version=VERSION)
+        log.debug('here2')
     except ValidationError as e:
+        log.debug('here3')
         log.error("Failed to validate reminder: %s", e.errors())
         errs = e.errors()
+        log.debug('here4')
         for err in errs:
             try:
                 err['ctx']['error'] = str(err['ctx']['error'])
             except KeyError:
                 pass
+        log.debug('here5')
         return {"errors": errs}, 400
     log.debug("Reminder validated: %s", reminder)
     with sqlite3.connect(DB) as con:
