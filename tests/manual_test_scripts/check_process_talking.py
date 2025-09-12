@@ -29,16 +29,16 @@ if __name__ == "__main__":
         "id": ID,
         "title": "Test",
         "message": "Test",
-        "work_hours_start": "00:00",
-        "work_hours_end": "23:59",
+        "work_hours_start": "01:23",
+        "work_hours_end": None,
         "work_days": [True] * 7,
-        "min_time": "2025-09-11T11:15:00",
-        "max_time": "2025-13-11T11:15:00",
+        "min_time": datetime.now().isoformat(),
+        "max_time": (datetime.now() + timedelta(minutes=1)).isoformat(),
         "dist": "uniform",
         "dist_params": {},
         "repeat": True,
-        "spacing_min": "1s 1m 1h 1d",
-        "spacing_max": "1s 1m 1h 1d"
+        "spacing_min": "1s 1m 1h 0d",
+        "spacing_max": "1s 1m 3h"
     }).raise_for_status()
 
 
