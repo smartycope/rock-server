@@ -33,13 +33,14 @@ if __name__ == "__main__":
         "work_hours_end": "23:59",
         "work_days": [True] * 7,
         "min_time": "2025-09-11T11:15:00",
-        "max_time": "2025-09-11T11:15:00",
+        "max_time": "2025-13-11T11:15:00",
         "dist": "uniform",
         "dist_params": {},
         "repeat": True,
         "spacing_min": "1s 1m 1h 1d",
         "spacing_max": "1s 1m 1h 1d"
-    })
+    }).raise_for_status()
+
 
     # it should show up in the db in 2 places
     assert con.execute("SELECT * FROM reminders WHERE device_id = ?", (DEVICE_ID,)).fetchone()

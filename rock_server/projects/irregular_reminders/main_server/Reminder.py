@@ -415,11 +415,12 @@ class Reminder(BaseModel):
 
     def _interpret_dist_params(self) -> dict:
         """ Interprets the distribution parameters based on the distribution type, and returns a dictionary of parameters for the correct function """
+        now = datetime.now()
         match self.dist:
             case Reminder.Distribution.UNIFORM:
                 return {
-                    "a": (self.min_time - datetime.now()).total_seconds(),
-                    "b": (self.max_time - datetime.now()).total_seconds(),
+                    "a": (self.min_time - now).total_seconds(),
+                    "b": (self.max_time - now).total_seconds(),
                 }
             case Reminder.Distribution.NORMAL:
                 return {
