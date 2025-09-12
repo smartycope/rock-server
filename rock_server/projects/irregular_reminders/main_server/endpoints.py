@@ -96,7 +96,7 @@ def register_device(data, device_id: str):
 @bp.post(ENDPOINTS["scheduleReminder"])
 def schedule_reminder(device_id: str):
     """ Receive a reminder and add it to the db """
-    log.log("Received reminders schedule request")
+    log.debug("Received reminders schedule request")
     try:
         reminder = Reminder(**request.json, device_id=device_id, version=VERSION)
     except ValidationError as e:
