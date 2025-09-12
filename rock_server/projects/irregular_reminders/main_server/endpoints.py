@@ -113,6 +113,9 @@ def schedule_reminder(device_id: str):
                 pass
         log.debug('here5')
         return {"errors": errs}, 400
+    except Exception as e:
+        log.error("Failed to create reminder entirely: %s", e)
+        return {"error": str(e)}, 500
     log.debug("Reminder validated: %s", reminder)
     with sqlite3.connect(DB) as con:
         reminder.load_to_db(con)
