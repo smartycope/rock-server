@@ -6,7 +6,7 @@ import sqlite3
 from datetime import datetime, time, timedelta
 import requests
 # Main flask server
-SERVER = "https://api.smartycope.org/irregular-reminders"
+SERVER = "https://api.smartycope.org/irregular-reminders/v1"
 # Flask APScheduler process
 RUNNER = "http://localhost:5050"
 DB = "/home/rock/rock-server/reminders.db"
