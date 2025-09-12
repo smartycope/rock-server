@@ -9,6 +9,7 @@ import time
 import datetime as dt
 from pathlib import Path
 import threading
+from time import sleep
 from .utils import format_logs, pretty_timedelta, format_line
 
 bp = Blueprint("system_endpoints", __name__)
@@ -35,7 +36,7 @@ def index():
 
 def restart_service():
     """ Restart the service """
-    time.sleep(0.1)
+    sleep(0.1)
     log.info("Service restarting")
     # We don't have access to current_app in a seperate thread.
     # if not current_app.DEBUG:
@@ -177,7 +178,7 @@ def stream_system_logs():
                 if line:
                     yield f"data: {format_line(line)}\n\n"
                 else:
-                    time.sleep(0.25)  # don’t busy loop
+                    sleep(0.25)  # don’t busy loop
     return Response(stream_with_context(generate()), mimetype="text/event-stream")
 
 @bp.get('/logs/system/<level>/')
@@ -219,7 +220,7 @@ def stream_logs():
                 if line:
                     yield f"data: {format_line(line)}\n\n"
                 else:
-                    time.sleep(0.25)  # don’t busy loop
+                    sleep(0.25)  # don’t busy loop
     return Response(stream_with_context(generate()), mimetype="text/event-stream")
 
 @bp.get('/logs/<level>/')
