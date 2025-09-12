@@ -1,6 +1,6 @@
 import logging
 import sqlite3
-from time import time
+from time import time, sleep
 from typing import Literal
 
 from flask import Blueprint, current_app, render_template, request, url_for, Response, stream_with_context
@@ -199,7 +199,7 @@ def stream_logs():
                 if line:
                     yield f"data: {format_line(line)}\n\n"
                 else:
-                    time.sleep(0.25)  # don’t busy loop
+                    sleep(0.25)  # don’t busy loop
     return Response(stream_with_context(generate()), mimetype="text/event-stream")
 
 @bp.get('/logs/<level>/')
