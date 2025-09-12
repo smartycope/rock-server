@@ -12,7 +12,6 @@ import uuid
 import json
 from pydantic import field_validator, model_validator, BaseModel
 import re
-
 # Client reminders look like this:
 """
 {

@@ -37,15 +37,17 @@ if __name__ == "__main__":
         "spacing_max": "1s 1m 1h 1d"
     })
 
-    # it should show up in the db
-    assert con.execute("SELECT * FROM reminders WHERE device_id = ?", (DEVICE_ID,)).fetchone()
+    # it should show up in the db in 2 places
+    assert (reminder := con.execute("SELECT * FROM reminders WHERE device_id = ?", (DEVICE_ID,)).fetchone())
+    # job_id is the last column
+    assert con.execute("SELECT * FROM jobs WHERE id = ?", (reminder[-1],)).fetchone()
 
     # it should show up in the runner process
     print(requests.get(f"{RUNNER}/jobs", timeout=5).json())
     print('-' * 20)
 
     # Get the id of the reminder
-    id = con.execute("SELECT id FROM reminders WHERE device_id = ?", (DEVICE_ID,)).fetchone()[0]
+    id = reminder[0]
 
     # Update it
     requests.put(f"{SERVER}/reminders/{DEVICE_ID}/{id}", json={"alive": False}, timeout=5)
