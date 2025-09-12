@@ -5,6 +5,8 @@ other correctly. Meant to be run while both processes are running on the server
 import sqlite3
 from datetime import datetime, time, timedelta
 import requests
+import uuid
+
 # Main flask server
 SERVER = "https://api.smartycope.org/irregular-reminders/v1"
 # Flask APScheduler process
@@ -12,6 +14,7 @@ RUNNER = "http://localhost:5050"
 DB = "/home/rock/rock-server/reminders.db"
 con = sqlite3.connect(DB)
 DEVICE_ID = "__test__"
+ID = str(uuid.uuid4())
 
 if __name__ == "__main__":
     # First insert a fake device
@@ -23,6 +26,7 @@ if __name__ == "__main__":
 
     # Now request a fake reminder
     requests.post(f"{SERVER}/reminders/{DEVICE_ID}", json={
+        "id": ID,
         "title": "Test",
         "message": "Test",
         "work_hours_start": "00:00",
@@ -38,26 +42,23 @@ if __name__ == "__main__":
     })
 
     # it should show up in the db in 2 places
-    assert (reminder := con.execute("SELECT * FROM reminders WHERE device_id = ?", (DEVICE_ID,)).fetchone())
+    assert con.execute("SELECT * FROM reminders WHERE device_id = ?", (DEVICE_ID,)).fetchone()
     # job_id is the last column
-    assert con.execute("SELECT * FROM jobs WHERE id = ?", (reminder[-1],)).fetchone()
+    assert con.execute("SELECT * FROM jobs WHERE id = ?", (ID,)).fetchone()
 
     # it should show up in the runner process
     print(requests.get(f"{RUNNER}/jobs", timeout=5).json())
     print('-' * 20)
 
-    # Get the id of the reminder
-    id = reminder[0]
-
     # Update it
-    requests.put(f"{SERVER}/reminders/{DEVICE_ID}/{id}", json={"alive": False}, timeout=5)
+    requests.put(f"{SERVER}/reminders/{DEVICE_ID}/{ID}", json={"alive": False}, timeout=5)
 
     # It should be paused in the runner process
     print(requests.get(f"{RUNNER}/jobs", timeout=5).json())
     print('-' * 20)
 
     # Delete it
-    requests.delete(f"{SERVER}/reminders/{DEVICE_ID}/{id}", timeout=5)
+    requests.delete(f"{SERVER}/reminders/{DEVICE_ID}/{ID}", timeout=5)
 
     # It should be deleted in the runner process
     print(requests.get(f"{RUNNER}/jobs", timeout=5).json())
