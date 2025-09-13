@@ -25,15 +25,15 @@ import os
 app = Flask(__name__)
 
 DB = "/home/rock/rock-server/reminders.db" if os.uname().nodename == "rockpi-4b" else "/home/zeke/hello/rock-server/rock_server/reminders.db"
-log = app.logger
-LOG_FILE = 'reminder_thread.log'
-file_handler = RotatingFileHandler(LOG_FILE, maxBytes=1024*1024, backupCount=1) # 1MB
-file_handler.setLevel(logging.DEBUG)
-file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
-app.logger.addHandler(file_handler)
-# Also print them, so they show up in the log that we actually look at
+# LOG_FILE = 'reminder_thread.log'
+# file_handler = RotatingFileHandler(LOG_FILE, maxBytes=1024*1024, backupCount=1) # 1MB
+# file_handler.setLevel(logging.DEBUG)
+# file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+# app.logger.addHandler(file_handler)
+# Just print them, so they show up in the system logs
 app.logger.addHandler(logging.StreamHandler())
-
+app.logger.setLevel(logging.DEBUG)
+log = app.logger
 
 class Config:
     ALLOWED_HOSTS = ['localhost', '127.0.0.1']
