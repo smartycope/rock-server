@@ -1,4 +1,4 @@
-from flask import redirect, render_template, send_file, url_for, current_app, Blueprint, Response, stream_with_context
+from flask import redirect, send_file, url_for, current_app, Blueprint
 import subprocess
 import git
 import logging
@@ -10,7 +10,7 @@ import datetime as dt
 from pathlib import Path
 import threading
 from time import sleep
-from .utils import format_logs, pretty_timedelta, format_line
+from .utils import format_logs, pretty_timedelta, format_line, generate_log_endpoints
 
 bp = Blueprint("system_endpoints", __name__)
 
@@ -151,95 +151,52 @@ def docs():
 
 
 # LOGS
+generate_log_endpoints(bp, "system.log", True, "/system")
+generate_log_endpoints(bp, current_app.LOG_FILE, False)
 
-@bp.get('/logs/')
-def logs():
-    """ The default log level is INFO """
-    return redirect(url_for(".get_logs", level='info'))
+# @bp.get('/logs/')
+# def logs():
+#     """ The default log level is INFO """
+#     return redirect(url_for(".get_logs", level='info'))
 
-# System logs
-@bp.post('/logs/system/')
-def add_system_spacer():
-    with open("system.log", 'a') as f:
-        f.write("<hr/>\n")
-    return "Spacer added", 200
+# # System logs
+# @bp.post('/logs/system/')
+# def add_system_spacer():
+#     with open("system.log", 'a') as f:
+#         f.write("<hr/>\n")
+#     return "Spacer added", 200
 
-@bp.delete('/logs/system/')
-def delete_system_logs():
-    with open("system.log", 'w') as f:
-        f.write("")
-    return "System logs cleared", 200
+# @bp.delete('/logs/system/')
+# def delete_system_logs():
+#     with open("system.log", 'w') as f:
+#         f.write("")
+#     return "System logs cleared", 200
 
-@bp.get("/logs/system/stream")
-def stream_system_logs():
-    def generate():
-        with open("system.log", 'r') as f:
-            f.seek(0, 2)  # move to end of file
-            while True:
-                line = f.readline()
-                if line:
-                    yield f"data: {format_line(line)}\n\n"
-                else:
-                    sleep(0.25)  # don’t busy loop
-    return Response(stream_with_context(generate()), mimetype="text/event-stream")
+# @bp.get("/logs/system/stream")
+# def stream_system_logs():
+#     def generate():
+#         with open("system.log", 'r') as f:
+#             f.seek(0, 2)  # move to end of file
+#             while True:
+#                 line = f.readline()
+#                 if line:
+#                     yield f"data: {format_line(line)}\n\n"
+#                 else:
+#                     sleep(0.25)  # don’t busy loop
+#     return Response(stream_with_context(generate()), mimetype="text/event-stream")
 
-@bp.get('/logs/system/<level>/')
-def get_system_logs(level):
-    level = level.upper()
-    if level not in logging._nameToLevel:
-        return f'Invalid level: {level}', 400
-    try:
-        with open("system.log", 'r') as f:
-            lines = format_logs(f.readlines(), logging._nameToLevel[level])
-    except FileNotFoundError:
-        lines = ["Log file not found."]
-    return render_template('logs_template.html',
-        logs=lines, clear_endpoint=url_for(".delete_system_logs"),
-        add_spacer_endpoint=url_for(".add_system_spacer"),
-        stream_endpoint=url_for(".stream_system_logs")
-    )
-
-# Flask logs
-@bp.delete('/logs/')
-def delete_logs():
-    with open(current_app.LOG_FILE, 'w') as f:
-        f.write("")
-    return "Logs cleared", 200
-
-@bp.post('/logs/')
-def add_spacer():
-    with open(current_app.LOG_FILE, 'a') as f:
-        f.write("<hr/>\n")
-    return "Spacer added", 200
-
-@bp.get("/logs/stream")
-def stream_logs():
-    def generate():
-        with open(current_app.LOG_FILE, 'r') as f:
-            f.seek(0, 2)  # move to end of file
-            while True:
-                line = f.readline()
-                if line:
-                    yield f"data: {format_line(line)}\n\n"
-                else:
-                    sleep(0.25)  # don’t busy loop
-    return Response(stream_with_context(generate()), mimetype="text/event-stream")
-
-@bp.get('/logs/<level>/')
-def get_logs(level):
-    level = level.upper()
-
-    if level not in logging._nameToLevel:
-        return f'Invalid level: {level}', 400
-
-    try:
-        with open(current_app.LOG_FILE, 'r') as f:
-            lines = format_logs(f.readlines(), logging._nameToLevel[level])
-    except FileNotFoundError:
-        lines = ["Log file not found."]
-
-    return render_template('logs_template.html',
-        logs=lines, clear_endpoint=url_for(".delete_logs"),
-        add_spacer_endpoint=url_for(".add_spacer"),
-        stream_endpoint=url_for(".stream_logs")
-    )
+# @bp.get('/logs/system/<level>/')
+# def get_system_logs(level):
+#     level = level.upper()
+#     if level not in logging._nameToLevel:
+#         return f'Invalid level: {level}', 400
+#     try:
+#         with open("system.log", 'r') as f:
+#             lines = format_logs(f.readlines(), logging._nameToLevel[level])
+#     except FileNotFoundError:
+#         lines = ["Log file not found."]
+#     return render_template('logs_template.html',
+#         logs=lines, clear_endpoint=url_for(".delete_system_logs"),
+#         add_spacer_endpoint=url_for(".add_system_spacer"),
+#         stream_endpoint=url_for(".stream_system_logs")
+#     )

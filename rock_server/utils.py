@@ -1,8 +1,10 @@
 from functools import wraps
-from flask import request, current_app
+from flask import request, current_app, Response, stream_with_context, url_for, render_template
+from time import sleep
 from pydantic import ValidationError
 import datetime as dt
 import logging
+
 
 log = current_app.logger
 
@@ -38,15 +40,32 @@ def pretty_timedelta(td):
         return f"{td.seconds} seconds"
 
 
-def format_line(line):
+def format_line(line, is_system):
     try:
+        # [2025-09-13 16:55:29,220] ...
+        # [2025-09-13 16:55:10 -0500] [176625] [INFO] ...
         parts = line.split(' ')
-        raw_date = parts[0]
-        raw_time = parts[1]
-        datetime = dt.datetime.strptime(f"{raw_date} {raw_time}", "%Y-%m-%d %H:%M:%S,%f")
+        if is_system:
+            raw_date = parts[0][1:]
+            if parts[2].startswith('-'):
+                parts.pop(2)
+                # Also pop the 3rd element, which is now the 2nd element
+                parts.pop(2)
+                raw_time = parts[1]
+                levelname = parts[2].strip('[]')
+                datetime = dt.datetime.strptime(f"{raw_date} {raw_time}", "%Y-%m-%d %H:%M:%S")
+            else:
+                levelname = parts[2]
+                raw_time = parts[1][:-1]
+            message = ' '.join(parts[4:])
+            datetime = dt.datetime.strptime(f"{raw_date} {raw_time}", "%Y-%m-%d %H:%M:%S,%f")
+        else:
+            raw_date = parts[0]
+            raw_time = parts[1]
+            levelname = parts[3]
+            message = ' '.join(parts[5:])
+            datetime = dt.datetime.strptime(f"{raw_date} {raw_time}", "%Y-%m-%d %H:%M:%S,%f")
         ago = dt.datetime.now() - datetime
-        levelname = parts[3]
-        message = ' '.join(parts[5:])
     except Exception:
         return f"<pre>{line}</pre>"
     # Color the levelname
@@ -73,7 +92,7 @@ def format_line(line):
     return f"{preamble}: {message}"
 
 
-def format_logs(lines, threshold):
+def format_logs(lines, threshold, is_system):
     """ Format the logs """
     spacer_count = 0
     for line in reversed(lines):
@@ -86,8 +105,63 @@ def format_logs(lines, threshold):
                 continue
             levelname = parts[3]
             if logging._nameToLevel.get(levelname, 100) >= threshold:
-                yield format_line(line)
+                yield format_line(line, is_system)
         except Exception as err:
             # continue  # skip malformed lines
             # log.error("Failed to format log line: %s", line)
             yield f"Error parsing line: {str(err)}\t{line}"#<br/><pre>{traceback.format_exc().replace('\n', '<br/>')}</pre>"
+
+
+def generate_log_endpoints(app, log_file, is_system, postfix='/'):
+    """ Generate endpoints for logging.
+        postfix should start with a / and not end with one
+    """
+    @app.delete(f'/logs{postfix}')
+    def delete_logs():
+        with open(log_file, 'w') as f:
+            f.write("")
+        return "Logs cleared", 200
+
+    @app.post(f'/logs{postfix}')
+    def add_spacer():
+        with open(log_file, 'a') as f:
+            f.write("<hr/>\n")
+        return "Spacer added", 200
+
+    @app.get(f"/logs{postfix}/stream")
+    def stream_logs():
+        def generate():
+            with open(log_file, 'r') as f:
+                f.seek(0, 2)  # move to end of file
+                while True:
+                    line = f.readline()
+                    if line:
+                        yield f"data: {format_line(line, is_system)}\n\n"
+                    else:
+                        sleep(0.25)  # don’t busy loop
+        return Response(stream_with_context(generate()), mimetype="text/event-stream")
+
+    @app.get(f'/logs{postfix}/<level>/')
+    def get_logs(level):
+        level = level.upper()
+
+        if level not in logging._nameToLevel:
+            return f'Invalid level: {level}', 400
+
+        try:
+            with open(log_file, 'r') as f:
+                lines = format_logs(f.readlines(), logging._nameToLevel[level], is_system)
+        except FileNotFoundError:
+            lines = ["Log file not found."]
+
+        return render_template('logs_template.html',
+            logs=lines,
+            # clear_endpoint=url_for(".delete_logs"),
+            clear_endpoint=f'/logs{postfix}',
+            # add_spacer_endpoint=url_for(".add_spacer"),
+            add_spacer_endpoint=f'/logs{postfix}',
+            # stream_endpoint=url_for(".stream_logs")
+            stream_endpoint=f'/logs{postfix}/stream'
+        )
+
+    return get_logs, stream_logs, add_spacer, delete_logs

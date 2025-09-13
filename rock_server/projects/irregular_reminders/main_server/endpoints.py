@@ -6,7 +6,7 @@ from typing import Literal
 from flask import Blueprint, current_app, render_template, request, url_for, Response, stream_with_context
 from pydantic import BaseModel, ValidationError
 
-from rock_server.utils import format_logs, validate_json, format_line
+from rock_server.utils import format_logs, validate_json, format_line, generate_log_endpoints
 
 from .Reminder import Reminder
 from .utils import (send_to_reminder_runner, update_reminder_runner, delete_from_reminder_runner)
@@ -188,47 +188,47 @@ def get_reminders(device_id: str):
 
 
 # Logs
+generate_log_endpoints(bp, OUR_LOGS, True)
+# @bp.delete('/logs/')
+# def delete_logs():
+#     with open(OUR_LOGS, 'w') as f:
+#         f.write("")
+#     return "Logs cleared", 200
 
-@bp.delete('/logs/')
-def delete_logs():
-    with open(OUR_LOGS, 'w') as f:
-        f.write("")
-    return "Logs cleared", 200
+# @bp.post('/logs/')
+# def add_spacer():
+#     with open(OUR_LOGS, 'a') as f:
+#         f.write("<hr/>\n")
+#     return "Spacer added", 200
 
-@bp.post('/logs/')
-def add_spacer():
-    with open(OUR_LOGS, 'a') as f:
-        f.write("<hr/>\n")
-    return "Spacer added", 200
+# @bp.get("/logs/stream")
+# def stream_logs():
+#     def generate():
+#         with open(OUR_LOGS, 'r') as f:
+#             f.seek(0, 2)  # move to end of file
+#             while True:
+#                 line = f.readline()
+#                 if line:
+#                     yield f"data: {format_line(line)}\n\n"
+#                 else:
+#                     sleep(0.25)  # don’t busy loop
+#     return Response(stream_with_context(generate()), mimetype="text/event-stream")
 
-@bp.get("/logs/stream")
-def stream_logs():
-    def generate():
-        with open(OUR_LOGS, 'r') as f:
-            f.seek(0, 2)  # move to end of file
-            while True:
-                line = f.readline()
-                if line:
-                    yield f"data: {format_line(line)}\n\n"
-                else:
-                    sleep(0.25)  # don’t busy loop
-    return Response(stream_with_context(generate()), mimetype="text/event-stream")
+# @bp.get('/logs/<level>/')
+# def get_logs(level):
+#     level = level.upper()
 
-@bp.get('/logs/<level>/')
-def get_logs(level):
-    level = level.upper()
+#     if level not in logging._nameToLevel:
+#         return f'Invalid level: {level}', 400
 
-    if level not in logging._nameToLevel:
-        return f'Invalid level: {level}', 400
+#     try:
+#         with open(OUR_LOGS, 'r') as f:
+#             lines = format_logs(f.readlines(), logging._nameToLevel[level])
+#     except FileNotFoundError:
+#         lines = ["Log file not found."]
 
-    try:
-        with open(OUR_LOGS, 'r') as f:
-            lines = format_logs(f.readlines(), logging._nameToLevel[level])
-    except FileNotFoundError:
-        lines = ["Log file not found."]
-
-    return render_template('logs_template.html',
-        logs=lines, clear_endpoint=url_for(".delete_logs"),
-        add_spacer_endpoint=url_for(".add_spacer"),
-        stream_endpoint=url_for(".stream_logs")
-    )
+#     return render_template('logs_template.html',
+#         logs=lines, clear_endpoint=url_for(".delete_logs"),
+#         add_spacer_endpoint=url_for(".add_spacer"),
+#         stream_endpoint=url_for(".stream_logs")
+#     )
