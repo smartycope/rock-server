@@ -39,7 +39,7 @@ if __name__ == "__main__":
         "repeat": True,
         "spacing_min": "1s 1m 1h 0d",
         "spacing_max": "1s 1m 3h"
-    }).raise_for_status()
+    }, timeout=5).raise_for_status()
 
 
     # it should show up in the db in 2 places

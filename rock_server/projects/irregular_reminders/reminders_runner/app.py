@@ -14,7 +14,7 @@ It doesn't:
 """
 
 import requests
-from flask import Flask
+from flask import Flask, request
 from logging.handlers import RotatingFileHandler
 import logging
 from flask_apscheduler import APScheduler
@@ -31,6 +31,8 @@ file_handler = RotatingFileHandler(LOG_FILE, maxBytes=1024*1024, backupCount=1) 
 file_handler.setLevel(logging.DEBUG)
 file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
 app.logger.addHandler(file_handler)
+# Also print them, so they show up in the log that we actually look at
+app.logger.addHandler(logging.StreamHandler())
 
 
 class Config:
@@ -91,6 +93,20 @@ def send_push_notification(device_id, title, message):
     )
     log.info("✅ Push Notification Response from expo server: %s", response.json())
 
+@app.before_request
+def log_request_info():
+    """ Log all requests """
+    app.logger.debug("Request: %s %s", request.method, request.url)
+
+@app.after_request
+def log_response(response):
+    app.logger.debug("Response: %s %s -> %s", request.method, request.url, response.status)
+    return response
+
+@app.errorhandler(Exception)
+def log_error(e):
+    app.logger.exception("Error handling request: %s %s %s", request.method, request.url, str(e))
+    return "Internal server error", 500
 
 # Health check
 @app.route("/")
