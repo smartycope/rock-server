@@ -10,7 +10,7 @@ will load a fix from the repo, restart the server, and check the status of the p
 
 To run locally:
 ```bash
-flask --app rock_server/main run --debug
+flask --app rock_server/app run --debug
 ```
 
 or
@@ -28,4 +28,4 @@ To install a package:
 ```bash
 curl -X POST api.smartycope.org/install/<package>
 ```
-flask --app rock_server/main run --debug
+flask --app rock_server/app run --debug

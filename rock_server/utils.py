@@ -157,13 +157,14 @@ def generate_log_endpoints(app, log_file, is_system, postfix=''):
         except FileNotFoundError:
             lines = ["Log file not found."]
 
+
         return render_template('logs_template.html',
             logs=lines,
-            clear_endpoint=url_for(f"delete_{postfix}_logs"),
+            clear_endpoint=url_for(f"{app.name}.delete_{postfix}_logs"),
             # clear_endpoint=f'/logs{postfix}/',
-            add_spacer_endpoint=url_for(f"add_spacer_{postfix}"),
+            add_spacer_endpoint=url_for(f"{app.name}.add_spacer_{postfix}"),
             # add_spacer_endpoint=f'/logs{postfix}/',
-            stream_endpoint=url_for(f"stream_{postfix}_logs")
+            stream_endpoint=url_for(f"{app.name}.stream_{postfix}_logs")
             # stream_endpoint=f'/logs{postfix}/stream/'
         )
     get_logs.__name__ = f"get_{postfix}_logs"
