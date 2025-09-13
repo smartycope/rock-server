@@ -43,7 +43,9 @@ if __name__ == "__main__":
 
 
     # it should show up in the db in 2 places
-    assert (reminder := con.execute("SELECT * FROM reminders WHERE device_id = ?", (DEVICE_ID,)).fetchone())
+    assert (reminder := con.execute("SELECT * FROM reminders WHERE device_id = ? AND id = ?", (DEVICE_ID, ID)).fetchone())
+    print('Found reminder with id:', ID, 'and it has the job_id:', reminder[-1])
+    print(reminder)
     # job_id is the last column
     assert con.execute("SELECT * FROM jobs WHERE id = ?", (reminder[-1],)).fetchone()
 

@@ -260,7 +260,7 @@ class Reminder(BaseModel):
             'id', 'version', 'title', 'message', 'work_hours_start', 'work_hours_end', 'work_days',
             'min_time', 'max_time', 'dist', 'dist_params', 'repeat', 'spacing_min',
             'spacing_max', 'alive', 'last_trigger_time', 'next_trigger_time',
-            'device_id'
+            'device_id', 'job_id'
         ], row))
         data['work_days'] = [bool(int(x)) for x in data['work_days'].split(',')]
         data['dist_params'] = json.loads(data['dist_params'])
