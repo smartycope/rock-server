@@ -151,8 +151,8 @@ def docs():
 
 
 # LOGS
-generate_log_endpoints(bp, "system.log", True, "/system")
 generate_log_endpoints(bp, current_app.LOG_FILE, False)
+generate_log_endpoints(bp, "system.log", True, postfix="/system")
 
 # @bp.get('/logs/')
 # def logs():

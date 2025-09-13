@@ -112,23 +112,25 @@ def format_logs(lines, threshold, is_system):
             yield f"Error parsing line: {str(err)}\t{line}"#<br/><pre>{traceback.format_exc().replace('\n', '<br/>')}</pre>"
 
 
-def generate_log_endpoints(app, log_file, is_system, postfix='/'):
+def generate_log_endpoints(app, log_file, is_system, postfix=''):
     """ Generate endpoints for logging.
         postfix should start with a / and not end with one
     """
-    @app.delete(f'/logs{postfix}')
+    @app.delete(f'/logs{postfix}/')
     def delete_logs():
         with open(log_file, 'w') as f:
             f.write("")
         return "Logs cleared", 200
+    delete_logs.__name__ = f"delete_{postfix}_logs"
 
-    @app.post(f'/logs{postfix}')
+    @app.post(f'/logs{postfix}/')
     def add_spacer():
         with open(log_file, 'a') as f:
             f.write("<hr/>\n")
         return "Spacer added", 200
+    add_spacer.__name__ = f"add_spacer_{postfix}"
 
-    @app.get(f"/logs{postfix}/stream")
+    @app.get(f"/logs{postfix}/stream/")
     def stream_logs():
         def generate():
             with open(log_file, 'r') as f:
@@ -140,6 +142,7 @@ def generate_log_endpoints(app, log_file, is_system, postfix='/'):
                     else:
                         sleep(0.25)  # don’t busy loop
         return Response(stream_with_context(generate()), mimetype="text/event-stream")
+    stream_logs.__name__ = f"stream_{postfix}_logs"
 
     @app.get(f'/logs{postfix}/<level>/')
     def get_logs(level):
@@ -157,11 +160,12 @@ def generate_log_endpoints(app, log_file, is_system, postfix='/'):
         return render_template('logs_template.html',
             logs=lines,
             # clear_endpoint=url_for(".delete_logs"),
-            clear_endpoint=f'/logs{postfix}',
+            clear_endpoint=f'/logs{postfix}/',
             # add_spacer_endpoint=url_for(".add_spacer"),
-            add_spacer_endpoint=f'/logs{postfix}',
+            add_spacer_endpoint=f'/logs{postfix}/',
             # stream_endpoint=url_for(".stream_logs")
-            stream_endpoint=f'/logs{postfix}/stream'
+            stream_endpoint=f'/logs{postfix}/stream/'
         )
+    get_logs.__name__ = f"get_{postfix}_logs"
 
     return get_logs, stream_logs, add_spacer, delete_logs
