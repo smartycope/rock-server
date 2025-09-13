@@ -217,7 +217,7 @@ class Reminder(BaseModel):
 
         return self
 
-    def serialize(self, include_device_id: bool = True):
+    def serialize(self, full: bool = True):
         """ Serialize the reminder to a dictionary, whose values can be directly inserted into the database """
         # Need to be in this order:
         # 'id', 'version', 'title', 'message', 'work_hours', 'work_days',
@@ -245,9 +245,11 @@ class Reminder(BaseModel):
             "last_trigger_time": self.last_trigger_time.isoformat() if self.last_trigger_time else None,
             "next_trigger_time": self.next_trigger_time.isoformat() if self.next_trigger_time else None,
             "device_id": str(self.device_id),
+            "job_id": str(self.job_id),
         }
-        if not include_device_id:
+        if not full:
             del data['device_id']
+            del data['job_id']
         return data
 
     @staticmethod
@@ -445,7 +447,7 @@ class Reminder(BaseModel):
 
     def load_to_db(self, conn:sqlite3.Connection):
         """ Load the reminder to the database """
-        data = self.serialize()
+        data = self.serialize(full=True)
         # TODO: this is potentially insecure, letting header keys insert malicious SQL code
         # If the PK already exists, update it
         conn.execute(f"INSERT OR REPLACE INTO reminders {tuple(data.keys())} VALUES ({', '.join(['?'] * len(data))})", list(data.values()))
