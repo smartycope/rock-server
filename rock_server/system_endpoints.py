@@ -17,6 +17,7 @@ bp = Blueprint("system_endpoints", __name__)
 log = current_app.logger
 
 SERVICE_NAME = "rock-server"
+REMINDER_RUNNER_SERVICE_NAME = "reminders-runner"
 if not current_app.DEBUG:
     repo = git.Repo("/home/rock/rock-server")
     PYTHON_BINARY = "/home/rock/rock-server/bin/python"
@@ -40,6 +41,7 @@ def restart_service():
     log.info("Service restarting")
     # We don't have access to current_app in a seperate thread.
     # if not current_app.DEBUG:
+    subprocess.run(["sudo", "systemctl", "restart", REMINDER_RUNNER_SERVICE_NAME])
     subprocess.run(["sudo", "systemctl", "restart", SERVICE_NAME])
     # simulate a SIGTERM if that didn't already
     exit(15)
