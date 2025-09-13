@@ -117,12 +117,14 @@ def schedule_reminder(device_id: str):
         log.error("Failed to create reminder entirely: %s", e)
         return {"error": str(e)}, 500
     log.debug("Reminder validated: %s", reminder)
+
+    # Send it to the runner process first, so we can attach a job_id
+    reminder = send_to_reminder_runner(reminder)
+    log.debug("Reminder sent to runner: %s", reminder)
+
     with sqlite3.connect(DB) as con:
         reminder.load_to_db(con)
     log.debug("Reminder added to db: %s", reminder)
-
-    send_to_reminder_runner(reminder)
-    log.debug("Reminder sent to runner: %s", reminder)
 
     return {"status": "ok"}, 200
 

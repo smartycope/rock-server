@@ -78,6 +78,8 @@ def send_to_reminder_runner(reminder:Reminder):
     if not reminder.alive:
         pause_job(reminder.job_id)
 
+    return reminder
+
 def update_reminder_runner(reminder:Reminder):
     """ Update a reminder in the reminders_runner process """
     job_data = {
