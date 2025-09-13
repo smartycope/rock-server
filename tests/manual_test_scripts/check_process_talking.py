@@ -43,9 +43,9 @@ if __name__ == "__main__":
 
 
     # it should show up in the db in 2 places
-    assert con.execute("SELECT * FROM reminders WHERE device_id = ?", (DEVICE_ID,)).fetchone()
+    assert (reminder := con.execute("SELECT * FROM reminders WHERE device_id = ?", (DEVICE_ID,)).fetchone())
     # job_id is the last column
-    assert con.execute("SELECT * FROM jobs WHERE id = ?", (ID,)).fetchone()
+    assert con.execute("SELECT * FROM jobs WHERE id = ?", (reminder[-1],)).fetchone()
 
     # it should show up in the runner process
     print(requests.get(f"{RUNNER}/jobs", timeout=5).json())
