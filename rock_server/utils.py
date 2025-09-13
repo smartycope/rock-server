@@ -159,12 +159,12 @@ def generate_log_endpoints(app, log_file, is_system, postfix=''):
 
         return render_template('logs_template.html',
             logs=lines,
-            # clear_endpoint=url_for(".delete_logs"),
-            clear_endpoint=f'/logs{postfix}/',
-            # add_spacer_endpoint=url_for(".add_spacer"),
-            add_spacer_endpoint=f'/logs{postfix}/',
-            # stream_endpoint=url_for(".stream_logs")
-            stream_endpoint=f'/logs{postfix}/stream/'
+            clear_endpoint=url_for(f"delete_{postfix}_logs"),
+            # clear_endpoint=f'/logs{postfix}/',
+            add_spacer_endpoint=url_for(f"add_spacer_{postfix}"),
+            # add_spacer_endpoint=f'/logs{postfix}/',
+            stream_endpoint=url_for(f"stream_{postfix}_logs")
+            # stream_endpoint=f'/logs{postfix}/stream/'
         )
     get_logs.__name__ = f"get_{postfix}_logs"
 
