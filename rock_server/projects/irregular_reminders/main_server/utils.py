@@ -83,7 +83,7 @@ def send_to_reminder_runner(reminder:Reminder):
 def update_reminder_runner(reminder:Reminder):
     """ Update a reminder in the reminders_runner process """
     job_data = {
-        "id": f"notify-{reminder.id}",
+        # "id": f"notify-{reminder.id}",
         "func": "app:send_push_notification",
         "args": [reminder.device_id, reminder.title, reminder.message],
         "trigger": "date",

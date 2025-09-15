@@ -128,7 +128,7 @@ def schedule_reminder(device_id: str):
 
     return {"status": "ok"}, 200
 
-@bp.put(ENDPOINTS["updateReminder"])
+@bp.patch(ENDPOINTS["updateReminder"])
 def update_reminder(device_id: str, id):
     """ Set a reminder to alive or dead """
     if len(request.json) == 0:
@@ -165,7 +165,14 @@ def delete_reminder(device_id: str, id: str):
         )
 
     # We need the reminder instance to delete it from the runner process, because it needs the job_id FK
-    delete_from_reminder_runner(Reminder.load_from_db(con, id))
+    try:
+        delete_from_reminder_runner(Reminder.load_from_db(con, id))
+    except ValueError:
+        log.error("Failed to delete reminder with id %s: Reminder not found", id)
+        return {"error": "Reminder not found"}, 410
+    except Exception as e:
+        log.error("Failed to delete reminder with id %s: %s", id, e)
+        return {"error": str(e)}, 500
 
     log.info("Deleted reminder with id %s", id)
 
