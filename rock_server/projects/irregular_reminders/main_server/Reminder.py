@@ -219,6 +219,9 @@ class Reminder(BaseModel):
         if self.dist == Reminder.Distribution.NORMAL:
             self.dist_params['std'] = self.cast_timedelta(self.dist_params['std'])
 
+        if self.min_time is None and self.max_time:
+            self.min_time = datetime.now(self.max_time.tzinfo)
+
         return self
 
     def serialize(self, full: bool = True):
@@ -302,6 +305,10 @@ class Reminder(BaseModel):
     def can_trigger(self, now: datetime = None):
         if now is None:
             now = datetime.now()
+        else:
+            # If the given time is in the past, we can't trigger
+            if now < datetime.now():
+                return False
 
         # trigger_work_hours
         if self.work_hours_start and not self.work_hours_start <= now.time():
@@ -425,7 +432,7 @@ class Reminder(BaseModel):
         match self.dist:
             case Reminder.Distribution.UNIFORM:
                 return {
-                    "a": (self.min_time - now).total_seconds(),
+                    "a": max((self.min_time - now).total_seconds(), 0),
                     "b": (self.max_time - now).total_seconds(),
                 }
             case Reminder.Distribution.NORMAL:
