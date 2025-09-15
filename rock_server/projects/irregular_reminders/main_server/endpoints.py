@@ -1,16 +1,35 @@
 import logging
-import traceback
 import sqlite3
-from time import time, sleep
+from time import sleep, time
+import traceback
 from typing import Literal
 
-from flask import Blueprint, current_app, render_template, request, url_for, Response, stream_with_context
+from flask import (
+    Blueprint,
+    Response,
+    current_app,
+    render_template,
+    request,
+    stream_with_context,
+    url_for,
+)
 from pydantic import BaseModel, ValidationError
 
-from rock_server.utils import format_logs, validate_json, format_line, generate_log_endpoints
+from rock_server.utils import (
+    format_line,
+    format_logs,
+    generate_log_endpoints,
+    validate_json,
+)
 
 from .Reminder import Reminder
-from .utils import (send_to_reminder_runner, update_reminder_runner, delete_from_reminder_runner, format_pydantic_errors)
+from .utils import (
+    clear_all_from_reminder_runner,
+    delete_from_reminder_runner,
+    format_pydantic_errors,
+    send_to_reminder_runner,
+    update_reminder_runner,
+)
 
 # This should start the reminder thread
 
@@ -64,6 +83,7 @@ ENDPOINTS = {
     'scheduleReminder': f"/{API_VERSION}/reminders/<device_id>",
     'getReminders':     f"/{API_VERSION}/reminders/<device_id>",
     'deleteReminder':   f"/{API_VERSION}/reminders/<device_id>/<id>",
+    'clearReminders':   f"/{API_VERSION}/reminders/<device_id>",
     'updateReminder':   f"/{API_VERSION}/reminders/<device_id>/<id>",
     'register':         f"/{API_VERSION}/devices/<device_id>",
 }
@@ -193,6 +213,29 @@ def get_reminders(device_id: str):
         data = [Reminder.from_db(row).serialize(False) for row in con.execute("SELECT * FROM reminders WHERE device_id = ?", (device_id,)).fetchall()]
         log.debug("Returning %s reminders for device %s", len(data), device_id)
         return data
+
+
+@bp.delete(ENDPOINTS["clearReminders"])
+def clear_reminders(device_id: str):
+    """ Delete all reminders for a device """
+    with sqlite3.connect(DB) as con:
+        try:
+            clear_all_from_reminder_runner(device_id, con)
+        except ValueError:
+            log.error("Failed to delete all reminders for device %s: Device not found", device_id)
+            return {"error": "Device not found"}, 410
+        except Exception as e:
+            log.error("Failed to delete all reminders for device %s: %s", device_id, e)
+            return {"error": str(e)}, 500
+
+        con.execute(
+            "DELETE FROM reminders WHERE device_id = ?",
+            (device_id,)
+        )
+
+    log.info("Deleted all reminders for device %s", device_id)
+
+    return {"status": "ok"}, 200
 
 
 
