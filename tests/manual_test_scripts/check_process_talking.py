@@ -47,7 +47,6 @@ if __name__ == "__main__":
     # it should show up in the db in 2 places
     assert (reminder := con.execute("SELECT * FROM reminders WHERE device_id = ? AND id = ?", (DEVICE_ID, ID)).fetchone())
     print('Found reminder with id:', ID, 'and it has the job_id:', reminder[-1])
-    # print(reminder)
     # job_id is the last column
     assert con.execute("SELECT * FROM jobs WHERE id = ?", (reminder[-1],)).fetchone()
     print('Job is in the jobs table')
@@ -56,7 +55,6 @@ if __name__ == "__main__":
     assert (job := requests.get(f"{RUNNER}/scheduler/jobs", timeout=5).json())
     for i in job:
         if i['id'] == reminder[-1]:
-            print(reminder)
             # Remove the timezone from the end of the string
             assert i['next_run_time'][:-6] == reminder[-3], f"{i['next_run_time']} != {reminder[-3]}"
             break
@@ -69,7 +67,7 @@ if __name__ == "__main__":
 
     # Update it
     print('Updating fake reminder from server...', end=' ')
-    print((resp := requests.patch(f"{SERVER}/reminders/{DEVICE_ID}/{ID}", json={"alive": False}, timeout=5).json()))
+    print((resp := requests.patch(f"{SERVER}/reminders/{DEVICE_ID}/{ID}", json={"alive": False}, timeout=5)).json())
     resp.raise_for_status()
 
     # It should be paused in the runner process
