@@ -190,10 +190,10 @@ class Reminder(BaseModel):
 
     @model_validator(mode="after")
     def validate_params(self):
-        if self.dist == Reminder.Distribution.UNIFORM and (self.min_time is None or self.max_time is None):
-            raise ValueError("min_time and max_time must be provided for UNIFORM distribution")
+        if self.dist == Reminder.Distribution.UNIFORM and self.max_time is None:
+            raise ValueError("max_time must be provided for UNIFORM distribution")
         if self.dist == Reminder.Distribution.UNIFORM and self.dist_params:
-            raise ValueError("dist_params must be empty for UNIFORM distribution. Specify min_time and max_time instead.")
+            raise ValueError("dist_params must be empty for UNIFORM distribution. Specify min_time/max_time instead.")
         if self.dist == Reminder.Distribution.NORMAL and self.dist_params.keys() != {'mean', 'std'}:
             raise ValueError("mean and std must be provided for NORMAL distribution")
         if self.dist == Reminder.Distribution.EXPONENTIAL and self.dist_params.keys() != {'mean'}:
@@ -204,6 +204,8 @@ class Reminder(BaseModel):
             raise ValueError("work_hours must be in order")
         if self.min_time and self.max_time and self.min_time > self.max_time:
             raise ValueError("min_time must be before max_time")
+        if self.min_time is None and self.max_time and self.max_time < datetime.now():
+            raise ValueError("max_time must be in the future if min_time is None (now)")
         if self.spacing_min and self.spacing_max and self.spacing_min > self.spacing_max:
             raise ValueError("spacing_min must be before spacing_max")
         if not any(self.work_days):
