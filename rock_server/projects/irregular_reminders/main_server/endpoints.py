@@ -159,16 +159,16 @@ def update_reminder(device_id: str, id):
 def delete_reminder(device_id: str, id: str):
     """ Delete a reminder from the db """
     # We need the reminder instance to delete it from the runner process, because it needs the job_id FK
-    try:
-        delete_from_reminder_runner(Reminder.load_from_db(con, id))
-    except ValueError:
-        log.error("Failed to delete reminder with id %s: Reminder not found", id)
-        return {"error": "Reminder not found"}, 410
-    except Exception as e:
-        log.error("Failed to delete reminder with id %s: %s", id, e)
-        return {"error": str(e)}, 500
-
     with sqlite3.connect(DB) as con:
+        try:
+            delete_from_reminder_runner(Reminder.load_from_db(con, id))
+        except ValueError:
+            log.error("Failed to delete reminder with id %s: Reminder not found", id)
+            return {"error": "Reminder not found"}, 410
+        except Exception as e:
+            log.error("Failed to delete reminder with id %s: %s", id, e)
+            return {"error": str(e)}, 500
+
         con.execute(
             "DELETE FROM reminders WHERE id = ? AND device_id = ?",
             (str(id), device_id)
