@@ -198,7 +198,7 @@ class Reminder(BaseModel):
             raise ValueError("mean and std must be provided for NORMAL distribution")
         if self.dist == Reminder.Distribution.EXPONENTIAL and self.dist_params.keys() != {'mean'}:
             raise ValueError("mean must be provided for EXPONENTIAL distribution")
-        if not len(self.work_days):
+        if not self.work_days:
             raise ValueError("work_days must not be empty")
         if self.work_hours_start and self.work_hours_end and self.work_hours_start > self.work_hours_end:
             raise ValueError("work_hours must be in order")
@@ -208,6 +208,8 @@ class Reminder(BaseModel):
             raise ValueError("spacing_min must be before spacing_max")
         if not any(self.work_days):
             raise ValueError("work_days must not be all False")
+        if not self.title and not self.message:
+            raise ValueError("title or message must be provided")
 
         # Validate & cast dist_params
         if self.dist != Reminder.Distribution.UNIFORM:

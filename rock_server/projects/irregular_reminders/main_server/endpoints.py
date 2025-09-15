@@ -57,8 +57,8 @@ with sqlite3.connect(DB) as con:
         );
     END;""")
 
-API_VERSION = "v1"
-VERSION = int(API_VERSION[1:])
+VERSION = 1
+API_VERSION = f"v{VERSION}"
 ENDPOINTS = {
     'scheduleReminder': f"/{API_VERSION}/reminders/<device_id>",
     'getReminders':     f"/{API_VERSION}/reminders/<device_id>",
@@ -100,7 +100,7 @@ def schedule_reminder(device_id: str):
     try:
         reminder = Reminder(**request.json, device_id=device_id, version=VERSION)
     except ValidationError as e:
-        log.error("Failed to validate reminder: %s", e)
+        log.error("Failed to validate reminder: %s", e.errors())
         errs = format_pydantic_errors(e)
         return {"errors": errs}, 400
     except Exception as e:
@@ -134,7 +134,7 @@ def update_reminder(device_id: str, id):
         try:
             reminder = reminder.get_modified(request.json)
         except ValidationError as e:
-            log.error("Failed to update reminder with id %s: %s", id, e)
+            log.error("Failed to update reminder with id %s: %s", id, e.errors())
             errs = format_pydantic_errors(e)
             return {"errors": errs}, 400
 
