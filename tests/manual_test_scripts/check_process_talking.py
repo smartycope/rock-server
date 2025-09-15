@@ -62,17 +62,23 @@ if __name__ == "__main__":
         raise AssertionError("Job not found in runner process")
 
     print('Job is in the runner process')
-    print()
-    print('-' * 20)
 
     # Update it
     print('Updating fake reminder from server...', end=' ')
     print((resp := requests.patch(f"{SERVER}/reminders/{DEVICE_ID}/{ID}", json={"alive": False}, timeout=5)).json())
     resp.raise_for_status()
 
+
     # It should be paused in the runner process
-    print(requests.get(f"{RUNNER}/scheduler/jobs", timeout=5).json())
-    print('-' * 20)
+    assert (jobs := requests.get(f"{RUNNER}/scheduler/jobs", timeout=5).json())
+    for i in jobs:
+        if i['id'] == reminder[-1]:
+            assert i['next_run_time'] is None
+            break
+    else:
+        raise AssertionError("Job not found in runner process")
+    print('Job is paused in the runner process')
+
 
     # Delete it
     print('Deleting fake reminder from server...', end=' ')
@@ -80,4 +86,10 @@ if __name__ == "__main__":
     resp.raise_for_status()
 
     # It should be deleted in the runner process
-    print(requests.get(f"{RUNNER}/scheduler/jobs", timeout=5).json())
+    resp = requests.get(f"{RUNNER}/scheduler/jobs", timeout=5)
+    resp.raise_for_status()
+    for i in resp.json():
+        if i['id'] == reminder[-1]:
+            raise AssertionError("Job not deleted in runner process")
+    print('Job is deleted in the runner process')
+    print("\U00002705 All tests pass!")
