@@ -69,17 +69,17 @@ if __name__ == "__main__":
 
     # Update it
     print('Updating fake reminder from server...', end=' ')
-    print(requests.patch(f"{SERVER}/reminders/{DEVICE_ID}/{ID}", json={"alive": False}, timeout=5).json())
-    print('done')
+    print((resp := requests.patch(f"{SERVER}/reminders/{DEVICE_ID}/{ID}", json={"alive": False}, timeout=5).json()))
+    resp.raise_for_status()
 
     # It should be paused in the runner process
-    # requests.get(f"{RUNNER}/scheduler/jobs", timeout=5).json()
+    print(requests.get(f"{RUNNER}/scheduler/jobs", timeout=5).json())
     print('-' * 20)
 
     # Delete it
     print('Deleting fake reminder from server...', end=' ')
-    requests.delete(f"{SERVER}/reminders/{DEVICE_ID}/{ID}", timeout=5).raise_for_status()
-    print('done')
+    print((resp := requests.delete(f"{SERVER}/reminders/{DEVICE_ID}/{ID}", timeout=5)).json())
+    resp.raise_for_status()
 
     # It should be deleted in the runner process
-    # print(requests.get(f"{RUNNER}/scheduler/jobs", timeout=5).json())
+    print(requests.get(f"{RUNNER}/scheduler/jobs", timeout=5).json())
