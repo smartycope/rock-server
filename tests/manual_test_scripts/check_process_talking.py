@@ -56,7 +56,8 @@ if __name__ == "__main__":
     assert (job := requests.get(f"{RUNNER}/scheduler/jobs", timeout=5).json())
     for i in job:
         if i['id'] == reminder[-1]:
-            assert i['next_run_time'] == reminder[-3]
+            print(reminder)
+            assert i['next_run_time'] == reminder[-3], f"{i['next_run_time']} != {reminder[-3]}"
             break
     else:
         raise AssertionError("Job not found in runner process")
