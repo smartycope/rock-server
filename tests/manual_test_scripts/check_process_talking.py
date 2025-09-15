@@ -50,18 +50,18 @@ if __name__ == "__main__":
     assert con.execute("SELECT * FROM jobs WHERE id = ?", (reminder[-1],)).fetchone()
 
     # it should show up in the runner process
-    print(requests.get(f"{RUNNER}/jobs", timeout=5).json())
+    print(requests.get(f"{RUNNER}/scheduler/jobs", timeout=5).json())
     print('-' * 20)
 
     # Update it
     requests.put(f"{SERVER}/reminders/{DEVICE_ID}/{ID}", json={"alive": False}, timeout=5)
 
     # It should be paused in the runner process
-    print(requests.get(f"{RUNNER}/jobs", timeout=5).json())
+    print(requests.get(f"{RUNNER}/scheduler/jobs", timeout=5).json())
     print('-' * 20)
 
     # Delete it
     requests.delete(f"{SERVER}/reminders/{DEVICE_ID}/{ID}", timeout=5)
 
     # It should be deleted in the runner process
-    print(requests.get(f"{RUNNER}/jobs", timeout=5).json())
+    print(requests.get(f"{RUNNER}/scheduler/jobs", timeout=5).json())
