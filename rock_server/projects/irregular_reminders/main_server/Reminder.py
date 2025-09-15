@@ -23,7 +23,7 @@ import re
     work_hours_start: "00:00",
     work_hours_end: "23:59",
     work_days: [True, True, True, True, True, True, True],
-    min_time: "2025-08-26T12:27:56", <-- TODO: not sure
+    min_time: "2025-08-26T12:27:56",
     max_time: "2025-08-26T12:27:56",
     dist: "uniform",
     dist_params: {"mean": "1s 1m 1h 1d", "std": "1s 1m 1h 1d"}, # Mean is a time delta, because it's reusable for repeating
@@ -65,7 +65,8 @@ class Reminder(BaseModel):
     # day of the week it's allowed to go off (Monday is 0, Sunday is 6 (to be compliant with datetime.weekday()))
     work_days: list[bool] = [True] * 7
     # min/max datetime of the window when it should go off
-    min_time: datetime | None = None
+    # min_time must be provided by the client, as it provides the timezone
+    min_time: datetime
     max_time: datetime | None = None
     # statistical distribution describing when within that window it should go off
     dist: Distribution = Distribution.UNIFORM
@@ -202,10 +203,8 @@ class Reminder(BaseModel):
             raise ValueError("work_days must not be empty")
         if self.work_hours_start and self.work_hours_end and self.work_hours_start > self.work_hours_end:
             raise ValueError("work_hours must be in order")
-        if self.min_time and self.max_time and self.min_time > self.max_time:
+        if self.max_time and self.min_time > self.max_time:
             raise ValueError("min_time must be before max_time")
-        if self.min_time is None and self.max_time and self.max_time < datetime.now(self.max_time.tzinfo):
-            raise ValueError("max_time must be in the future if min_time is None (now)")
         if self.spacing_min and self.spacing_max and self.spacing_min > self.spacing_max:
             raise ValueError("spacing_min must be before spacing_max")
         if not any(self.work_days):
@@ -213,16 +212,20 @@ class Reminder(BaseModel):
         if not self.title and not self.message:
             raise ValueError("title or message must be provided")
 
+        # max_time must be in the future. If it's not, force dead
+        if self.max_time and self.max_time < datetime.now(self.max_time.tzinfo):
+            self.alive = False
+
         # Validate & cast dist_params
         if self.dist != Reminder.Distribution.UNIFORM:
             self.dist_params['mean'] = self.cast_timedelta(self.dist_params['mean'])
         if self.dist == Reminder.Distribution.NORMAL:
             self.dist_params['std'] = self.cast_timedelta(self.dist_params['std'])
 
-        if self.min_time is None and self.max_time:
-            self.min_time = datetime.now(self.max_time.tzinfo)
-
         return self
+
+    def timezone(self):
+        return self.min_time.tzinfo
 
     def serialize(self, full: bool = True):
         """ Serialize the reminder to a dictionary, whose values can be directly inserted into the database """
@@ -240,7 +243,7 @@ class Reminder(BaseModel):
             "work_hours_start": self.work_hours_start.strftime("%H:%M") if self.work_hours_start else None,
             "work_hours_end": self.work_hours_end.strftime("%H:%M") if self.work_hours_end else None,
             "work_days": ",".join(map(str, map(int, self.work_days))),
-            "min_time": self.min_time.isoformat() if self.min_time else None,
+            "min_time": self.min_time.isoformat(),
             "max_time": self.max_time.isoformat() if self.max_time else None,
             "dist": self.dist.name.lower(),
             # NOTE: this only works because all the current dist_params are timedelta objects by coincidence
@@ -321,7 +324,7 @@ class Reminder(BaseModel):
             return False
 
         # trigger_min_time/max
-        if self.min_time and now < self.min_time:
+        if now < self.min_time:
             return False
         # This should never happen, but we still want to check it
         if self.max_time and now > self.max_time:
@@ -350,7 +353,7 @@ class Reminder(BaseModel):
         else:
             next_time = now
             # Ensure it's within the trigger window
-            if self.min_time and next_time < self.min_time:
+            if next_time < self.min_time:
                 next_time = self.min_time
             if self.max_time and next_time >= self.max_time:
                 return
@@ -404,7 +407,7 @@ class Reminder(BaseModel):
 
         Note: if the parameters are particularly poorly chosen (i.e. the trigger window is very small,
             and the mean of a distribution is very close to or outside of the window),
-            this function may take a very long time to return
+            this function mF8 with Fantastic Mr. Fox in the background is jarringay take a very long time to return
 
         This is private, because we make modifications to the reminder in here, which don't get
         updated in the db. This is only allowed in the constructor.
@@ -432,7 +435,7 @@ class Reminder(BaseModel):
         match self.dist:
             case Reminder.Distribution.UNIFORM:
                 return {
-                    "a": max((self.min_time - now).total_seconds(), 0),
+                    "a": (self.min_time - now).total_seconds(),
                     "b": (self.max_time - now).total_seconds(),
                 }
             case Reminder.Distribution.NORMAL:
