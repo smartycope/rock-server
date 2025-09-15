@@ -204,6 +204,10 @@ class Reminder(BaseModel):
             raise ValueError("work_hours must be in order")
         if self.min_time and self.max_time and self.min_time > self.max_time:
             raise ValueError("min_time must be before max_time")
+        log.debug("max_time: %s", self.max_time)
+        log.debug("max_time tzinfo: %s", self.max_time.tzinfo)
+        log.debug("now: %s", datetime.now())
+        log.debug("now tzinfo: %s", datetime.now().tzinfo)
         if self.min_time is None and self.max_time and self.max_time < datetime.now():
             raise ValueError("max_time must be in the future if min_time is None (now)")
         if self.spacing_min and self.spacing_max and self.spacing_min > self.spacing_max:
