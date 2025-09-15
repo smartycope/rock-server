@@ -92,9 +92,10 @@ if __name__ == "__main__":
         if i['id'] == reminder[-1]:
             raise AssertionError("Job not deleted in runner process")
     print('Job is deleted in the runner process')
-    print("\U00002705 All tests pass!")
 
     # It should also not be in the db
     assert not con.execute("SELECT * FROM reminders WHERE device_id = ? AND id = ?", (DEVICE_ID, ID)).fetchone()
     assert not con.execute("SELECT * FROM jobs WHERE id = ?", (reminder[-1],)).fetchone()
     print('Reminder is deleted in the db')
+
+    print("\U00002705 All tests pass!")

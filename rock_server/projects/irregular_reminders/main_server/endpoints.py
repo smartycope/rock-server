@@ -98,20 +98,15 @@ def schedule_reminder(device_id: str):
     """ Receive a reminder and add it to the db """
     log.debug("Received reminders schedule request")
     try:
-        log.debug('here1')
         reminder = Reminder(**request.json, device_id=device_id, version=VERSION)
-        log.debug('here2')
     except ValidationError as e:
-        log.debug('here3')
         log.error("Failed to validate reminder: %s", e.errors())
         errs = e.errors()
-        log.debug('here4')
         for err in errs:
             try:
                 err['ctx']['error'] = str(err['ctx']['error'])
             except KeyError:
                 pass
-        log.debug('here5')
         return {"errors": errs}, 400
     except Exception as e:
         log.error("Failed to create reminder entirely: %s", e)
@@ -136,7 +131,11 @@ def update_reminder(device_id: str, id):
 
     with sqlite3.connect(DB) as con:
         # I don't see a reason this shouldn't work?
-        reminder = Reminder.load_from_db(con, id)
+        try:
+            reminder = Reminder.load_from_db(con, id)
+        except ValueError:
+            log.error("Failed to update reminder with id %s: Reminder not found", id)
+            return {"error": "Reminder not found"}, 410
         reminder.__dict__.update(request.json)
         reminder.load_to_db(con)
 
