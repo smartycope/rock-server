@@ -445,6 +445,10 @@ class Reminder(BaseModel):
             return self._trigger(conn)
         return False
 
+    def get_modified(self, modifications: dict):
+        """ Returns a new reminder with the modifications applied """
+        return Reminder(**self.__dict__ | modifications)
+
     def load_to_db(self, conn:sqlite3.Connection):
         """ Load the reminder to the database """
         data = self.serialize(full=True)

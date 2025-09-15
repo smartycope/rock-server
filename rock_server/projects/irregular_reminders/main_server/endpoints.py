@@ -6,7 +6,7 @@ from typing import Literal
 from flask import Blueprint, current_app, render_template, request, url_for, Response, stream_with_context
 from pydantic import BaseModel, ValidationError
 
-from rock_server.utils import format_logs, validate_json, format_line, generate_log_endpoints
+from rock_server.utils import format_logs, validate_json, format_line, generate_log_endpoints, format_pydantic_errors
 
 from .Reminder import Reminder
 from .utils import (send_to_reminder_runner, update_reminder_runner, delete_from_reminder_runner)
@@ -100,13 +100,8 @@ def schedule_reminder(device_id: str):
     try:
         reminder = Reminder(**request.json, device_id=device_id, version=VERSION)
     except ValidationError as e:
-        log.error("Failed to validate reminder: %s", e.errors())
-        errs = e.errors()
-        for err in errs:
-            try:
-                err['ctx']['error'] = str(err['ctx']['error'])
-            except KeyError:
-                pass
+        log.error("Failed to validate reminder: %s", e)
+        errs = format_pydantic_errors(e)
         return {"errors": errs}, 400
     except Exception as e:
         log.error("Failed to create reminder entirely: %s", e)
@@ -136,7 +131,15 @@ def update_reminder(device_id: str, id):
         except ValueError:
             log.error("Failed to update reminder with id %s: Reminder not found", id)
             return {"error": "Reminder not found"}, 410
-        reminder.__dict__.update(request.json)
+        try:
+            reminder = reminder.get_modified(request.json)
+        except ValidationError as e:
+            log.error("Failed to update reminder with id %s: %s", id, e)
+            errs = format_pydantic_errors(e)
+            return {"errors": errs}, 400
+
+        log.debug("Reminder updated: %s", reminder)
+
         reminder.load_to_db(con)
 
         # This does work, but the above is cleaner

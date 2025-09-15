@@ -39,6 +39,11 @@ def get_token(device_id: str, con:Connection):
         return # {"error": str(e)}, 500
     return token
 
+def format_pydantic_errors(err):
+    errs = err.errors()
+    # This is all the client cares about
+    return [info['msg'] for info in errs]
+
 # Communication with the runner process
 # https://viniciuschiele.github.io/flask-apscheduler/rst/api.html for details
 def pause_job(job_id: str):
