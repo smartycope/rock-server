@@ -105,8 +105,8 @@ def schedule_reminder(device_id: str):
         errs = format_pydantic_errors(e)
         return {"errors": errs}, 400
     except Exception as e:
-        log.error("Failed to create reminder entirely: %s", e)
-        return {"error": str(e), "traceback": traceback.format_exc()}, 500
+        log.error("Failed to create reminder entirely: %s\n%s", e, traceback.format_exc())
+        return {"error": str(e)}, 500
     log.debug("Reminder validated: %s", reminder)
 
     # Send it to the runner process first, so we can attach a job_id
@@ -123,7 +123,7 @@ def schedule_reminder(device_id: str):
 def update_reminder(device_id: str, id):
     """ Set a reminder to alive or dead """
     if len(request.json) == 0:
-        return 20
+        return 201
 
     with sqlite3.connect(DB) as con:
         # I don't see a reason this shouldn't work?
