@@ -204,10 +204,11 @@ class Reminder(BaseModel):
             raise ValueError("work_hours must be in order")
         if self.min_time and self.max_time and self.min_time > self.max_time:
             raise ValueError("min_time must be before max_time")
-        print(f"max_time: {self.max_time}")
-        print(f"max_time tzinfo: {self.max_time.tzinfo}")
-        print(f"now: {datetime.now()}")
-        print(f"now tzinfo: {datetime.now().tzinfo}")
+        from flask import current_app
+        current_app.logger.debug(f"max_time: {self.max_time}")
+        current_app.logger.debug(f"max_time tzinfo: {self.max_time.tzinfo}")
+        current_app.logger.debug(f"now: {datetime.now()}")
+        current_app.logger.debug(f"now tzinfo: {datetime.now().tzinfo}")
         if self.min_time is None and self.max_time and self.max_time < datetime.now():
             raise ValueError("max_time must be in the future if min_time is None (now)")
         if self.spacing_min and self.spacing_max and self.spacing_min > self.spacing_max:
