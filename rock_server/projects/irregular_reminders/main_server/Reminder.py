@@ -119,7 +119,7 @@ class Reminder(BaseModel):
         """
         super().__init__(*args, **kwargs)
         if self.alive is None:
-            self.alive = self.max_time is None or self.max_time > datetime.now()
+            self.alive = self.max_time is None or self.max_time > datetime.now(self.timezone)
 
         # If we're deserializing, then don't create a new one
         if self.next_trigger_time is None:
@@ -293,7 +293,7 @@ class Reminder(BaseModel):
         """
         if not self.can_trigger():
             return False
-        self.last_trigger_time = datetime.now()
+        self.last_trigger_time = datetime.now(self.timezone)
         if not self.repeat:
             self.alive = False
         else:
@@ -308,10 +308,10 @@ class Reminder(BaseModel):
 
     def can_trigger(self, now: datetime = None):
         if now is None:
-            now = datetime.now()
+            now = datetime.now(self.timezone)
         else:
             # If the given time is in the past, we can't trigger
-            if now < datetime.now():
+            if now < datetime.now(self.timezone):
                 return False
 
         # trigger_work_hours
@@ -348,7 +348,7 @@ class Reminder(BaseModel):
         Will not set self.alive.
         """
         if now is None:
-            now = datetime.now()
+            now = datetime.now(self.timezone)
         if self.can_trigger(now):
             return now
         else:
@@ -417,11 +417,11 @@ class Reminder(BaseModel):
         while sample is None:
             # If sample is None, it means it's outside the bounds of the trigger window
             if adj == 'next':
-                sample = self.next_allowed_time(datetime.now() + timedelta(
+                sample = self.next_allowed_time(datetime.now(self.timezone) + timedelta(
                     seconds=self.dist_map[self.dist](**self._interpret_dist_params())
                 ))
             elif adj == 'resample':
-                sample = datetime.now() + timedelta(
+                sample = datetime.now(self.timezone) + timedelta(
                     seconds=self.dist_map[self.dist](**self._interpret_dist_params())
                 )
                 if not self.can_trigger(sample):
@@ -456,7 +456,7 @@ class Reminder(BaseModel):
 
         Because we modify the reminder, we need a db connection so we can update it automatically as well
         """
-        if (self.next_trigger_time - datetime.now()).total_seconds() <= self.allowed_resolution_sec:
+        if (self.next_trigger_time - datetime.now(self.timezone)).total_seconds() <= self.allowed_resolution_sec:
             return self._trigger(conn)
         return False
 
