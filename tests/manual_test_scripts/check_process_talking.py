@@ -57,7 +57,8 @@ if __name__ == "__main__":
     for i in job:
         if i['id'] == reminder[-1]:
             print(reminder)
-            assert i['next_run_time'] == reminder[-3], f"{i['next_run_time']} != {reminder[-3]}"
+            # Remove the timezone from the end of the string
+            assert i['next_run_time'][:-6] == reminder[-3], f"{i['next_run_time']} != {reminder[-3]}"
             break
     else:
         raise AssertionError("Job not found in runner process")
