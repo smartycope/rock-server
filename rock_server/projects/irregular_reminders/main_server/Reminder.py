@@ -224,6 +224,7 @@ class Reminder(BaseModel):
 
         return self
 
+    @property
     def timezone(self):
         return self.min_time.tzinfo
 
