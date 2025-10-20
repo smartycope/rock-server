@@ -65,6 +65,9 @@ with app.app_context():
     from rock_server.projects.irregular_reminders.main_server import bp as reminders_bp
     app.register_blueprint(reminders_bp, url_prefix="/irregular-reminders")
 
+    from rock_server.projects.customized_form import bp as customized_form_bp
+    app.register_blueprint(customized_form_bp, url_prefix="/customized-form")
+
     # Create a test key if none exists
     # with sqlite3.connect("apikeys.db") as con:
     #     cur = con.cursor()
