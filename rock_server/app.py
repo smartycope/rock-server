@@ -68,6 +68,9 @@ with app.app_context():
     from rock_server.projects.customized_form import bp as customized_form_bp
     app.register_blueprint(customized_form_bp, url_prefix="/customized-form")
 
+    from rock_server.projects.spotify_controller import bp as spotify_controller_bp
+    app.register_blueprint(spotify_controller_bp, url_prefix="/spotify-controller")
+
     # Create a test key if none exists
     # with sqlite3.connect("apikeys.db") as con:
     #     cur = con.cursor()

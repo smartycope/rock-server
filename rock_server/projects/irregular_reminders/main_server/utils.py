@@ -118,8 +118,11 @@ def delete_from_reminder_runner(reminder:Reminder):
         log.error("Failed to delete reminder with id %s: %s", reminder.id, e)
         return
 
-def clear_all_from_reminder_runner(device_id: str, con:Connection):
+def clear_all_from_reminder_runner(device_id: str, con:Connection, just_inactive):
     """ Delete all reminders for a device from the reminders_runner process """
-    for row in con.execute("SELECT job_id FROM reminders WHERE device_id = ?", (device_id,)).fetchall():
+    query = "SELECT job_id FROM reminders WHERE device_id = ?"
+    if just_inactive:
+        query += " AND alive = False"
+    for row in con.execute(query, (device_id,)).fetchall():
         delete_from_reminder_runner(Reminder.load_from_db(con, row[0]))
     log.info("Successfully deleted all reminders for device %s", device_id)

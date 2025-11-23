@@ -486,6 +486,12 @@ class Reminder(BaseModel):
     def __hash__(self):
         return hash(self.id)
 
+    def __str__(self):
+        return f"Reminder({self.title}, id={self.id})"
+
+    def __repr__(self):
+        return str(self)
+
 # Throw some quick tests together
 if __name__ == "__main__":
     r = Reminder.from_client(dict(

@@ -218,9 +218,14 @@ def get_reminders(device_id: str):
 @bp.delete(ENDPOINTS["clearReminders"])
 def clear_reminders(device_id: str):
     """ Delete all reminders for a device """
+    if 'active' in request.json:
+        just_inactive = not request.json['active']
+    else:
+        just_inactive = False
+
     with sqlite3.connect(DB) as con:
         try:
-            clear_all_from_reminder_runner(device_id, con)
+            clear_all_from_reminder_runner(device_id, con, just_inactive)
         except ValueError:
             log.error("Failed to delete all reminders for device %s: Device not found", device_id)
             return {"error": "Device not found"}, 410
@@ -228,10 +233,10 @@ def clear_reminders(device_id: str):
             log.error("Failed to delete all reminders for device %s: %s", device_id, e)
             return {"error": str(e)}, 500
 
-        con.execute(
-            "DELETE FROM reminders WHERE device_id = ?",
-            (device_id,)
-        )
+        query = "DELETE FROM reminders WHERE device_id = ?"
+        if just_inactive:
+            query += " AND active = False"
+        con.execute(query, (device_id,))
 
     log.info("Deleted all reminders for device %s", device_id)
 
