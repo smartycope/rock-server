@@ -1,6 +1,5 @@
 import requests
 import json
-import argparse
 import os
 from flask import Blueprint
 from rock_server.utils import current_app
@@ -14,12 +13,6 @@ CLIENT_SECRET = "8cb46e13ce4a4d35921e1bf0ca2db66b"
 PLAYLIST_ID = "5X1xVCi1QdDitU1ER07EES"
 API_BASE = 'https://api.spotify.com/v1/'
 
-parser = argparse.ArgumentParser(description='Control Copes spotify account')
-parser.add_argument('task', choices=['like', 'unlike'])
-args = parser.parse_args()
-
-AUTH_HEADERS = {'Authorization': f'Bearer {load_tokens()[0]}'}
-
 def load_tokens():
     """Load access and refresh tokens from the token file."""
     global AUTH_HEADERS
@@ -29,6 +22,8 @@ def load_tokens():
     with open(TOKEN_FILE, "r") as file:
         tokens = json.load(file)
         return tokens.get("access_token"), tokens.get("refresh_token")
+
+AUTH_HEADERS = {'Authorization': f'Bearer {load_tokens()[0]}'}
 
 def save_tokens(access_token, refresh_token):
     """Save access and refresh tokens to the token file."""
@@ -128,7 +123,8 @@ def like():
 
     remove_track_from_playlist(track_id, PLAYLIST_ID)
     log.info(f"Removed {track_name} from playlist {PLAYLIST_ID}.")
-    return 200
+
+    return "", 200
 
 @bp.post("/unlike")
 def unlike():
@@ -156,4 +152,5 @@ def unlike():
 
     else:
         log.info(f"{track_name} is not in your Liked Songs, nothing to move.")
-    return 200
+
+    return "", 200
