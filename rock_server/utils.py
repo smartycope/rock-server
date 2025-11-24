@@ -69,15 +69,14 @@ def format_line(line, is_system):
     except Exception:
         return f"<pre>{line}</pre>"
     # Color the levelname
-    match levelname:
-        case "DEBUG":
-            levelname = "<span style='color: gray;'>DEBUG  </span>"
-        case "INFO":
-            levelname = "<span style='color: blue;'>INFO   </span>"
-        case "WARNING":
-            levelname = "<span style='color: orange;'>WARNING</span>"
-        case "ERROR":
-            levelname = "<span style='color: red;'>ERROR  </span>"
+    if levelname == "DEBUG":
+        levelname = "<span style='color: gray;'>DEBUG  </span>"
+    elif levelname == "INFO":
+        levelname = "<span style='color: blue;'>INFO   </span>"
+    elif levelname == "WARNING":
+        levelname = "<span style='color: orange;'>WARNING</span>"
+    elif levelname == "ERROR":
+        levelname = "<span style='color: red;'>ERROR  </span>"
 
     if message.startswith("Request") or message.startswith("Response"):
         message = message.replace("http://localhost:5000", "", 1)

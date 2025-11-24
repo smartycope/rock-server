@@ -7,7 +7,7 @@ import sqlite3
 from enum import Enum
 import random
 import enum
-from typing import Literal, ClassVar
+from typing import Literal, ClassVar, Union
 import uuid
 import json
 from pydantic import field_validator, model_validator, BaseModel
@@ -60,32 +60,32 @@ class Reminder(BaseModel):
     title: str
     message: str
     # period of the day when the alarm is allowed to trigger
-    work_hours_start: time | None = None
-    work_hours_end: time | None = None
+    work_hours_start: Union[time, None] = None
+    work_hours_end: Union[time, None] = None
     # day of the week it's allowed to go off (Monday is 0, Sunday is 6 (to be compliant with datetime.weekday()))
     work_days: list[bool] = [True] * 7
     # min/max datetime of the window when it should go off
     # min_time must be provided by the client, as it provides the timezone
     min_time: datetime
-    max_time: datetime | None = None
+    max_time: Union[datetime, None] = None
     # statistical distribution describing when within that window it should go off
     dist: Distribution = Distribution.UNIFORM
     dist_params: dict = {}
     # if it should go off repeatedly or not
     repeat: bool = False
     # min/max amount of time it should wait before going off again
-    spacing_min: timedelta | None = timedelta(seconds=1)
-    spacing_max: timedelta | None = None
+    spacing_min: Union[timedelta, None] = timedelta(seconds=1)
+    spacing_max: Union[timedelta, None] = None
     # whether it's alive or not - None means it's not initialized, and gets set in __init__
-    alive: bool | None = None
+    alive: Union[bool, None] = None
 
     # Really, these are just members, not fields, but whatever
     # the last time it went off - None for hasn't yet
-    last_trigger_time: datetime | None = None
+    last_trigger_time: Union[datetime, None] = None
     # This gets calcuated immediately in __init__
-    next_trigger_time: datetime | None = None
+    next_trigger_time: Union[datetime, None] = None
     # The job id this reminder is associated with, or None if it's not currently scheduled
-    job_id: str | None = None
+    job_id: Union[str, None] = None
 
 
     # Class variables
@@ -169,14 +169,13 @@ class Reminder(BaseModel):
                 if key in seen_units:
                     raise ValueError("Invalid timedelta format (duplicate unit)")
 
-                match key:
-                    case 'mo': total += timedelta(days=num * 30)
-                    case 'y':  total += timedelta(days=num * 365)
-                    case 'd':  total += timedelta(days=num)
-                    case 'h':  total += timedelta(hours=num)
-                    case 'm':  total += timedelta(minutes=num)
-                    case 's':  total += timedelta(seconds=num)
-                    case _: raise ValueError("Invalid timedelta format (unknown unit)")
+                if key == 'mo': total += timedelta(days=num * 30)
+                elif key == 'y':  total += timedelta(days=num * 365)
+                elif key == 'd':  total += timedelta(days=num)
+                elif key == 'h':  total += timedelta(hours=num)
+                elif key == 'm':  total += timedelta(minutes=num)
+                elif key == 's':  total += timedelta(seconds=num)
+                else: raise ValueError("Invalid timedelta format (unknown unit)")
                 seen_units.add(key)
 
             if prev_end != len(trimmed):
@@ -341,7 +340,7 @@ class Reminder(BaseModel):
 
         return self.alive
 
-    def next_allowed_time(self, now: datetime = None) -> datetime | None:
+    def next_allowed_time(self, now: datetime = None) -> Union[datetime, None]:
         """
         Returns the next time this reminder is allowed to trigger
         If it is not allowed to trigger, returns None
@@ -433,21 +432,20 @@ class Reminder(BaseModel):
     def _interpret_dist_params(self) -> dict:
         """ Interprets the distribution parameters based on the distribution type, and returns a dictionary of parameters for the correct function """
         now = datetime.now(self.timezone)
-        match self.dist:
-            case Reminder.Distribution.UNIFORM:
-                return {
-                    "a": (self.min_time - now).total_seconds(),
-                    "b": (self.max_time - now).total_seconds(),
-                }
-            case Reminder.Distribution.NORMAL:
-                return {
-                    "mu": self.dist_params['mean'].total_seconds(),
-                    "sigma": self.dist_params['std'].total_seconds(),
-                }
-            case Reminder.Distribution.EXPONENTIAL:
-                return {
-                    "lambd": self.dist_params['mean'].total_seconds(),
-                }
+        if self.dist == Reminder.Distribution.UNIFORM:
+            return {
+                "a": (self.min_time - now).total_seconds(),
+                "b": (self.max_time - now).total_seconds(),
+            }
+        elif self.dist == Reminder.Distribution.NORMAL:
+            return {
+                "mu": self.dist_params['mean'].total_seconds(),
+                "sigma": self.dist_params['std'].total_seconds(),
+            }
+        elif self.dist == Reminder.Distribution.EXPONENTIAL:
+            return {
+                "lambd": self.dist_params['mean'].total_seconds(),
+            }
 
     def trigger_if_ready(self, conn:sqlite3.Connection) -> bool:
         """
