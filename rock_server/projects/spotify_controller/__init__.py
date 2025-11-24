@@ -115,7 +115,7 @@ def remove_track_from_playlist(track_id, playlist_id):
 def next_song():
     make_request('me/player/next', method='POST')
 
-@bp.post("/like")
+@bp.get("/like")
 def like():
     if dt.datetime.now().year != PLAYLIST_YEAR:
         log.error("Playlist year doesn't match current year, not liking track.")
@@ -140,7 +140,7 @@ def like():
 
     return "", 200
 
-@bp.post("/unlike")
+@bp.get("/unlike")
 def unlike():
     if dt.datetime.now().year != PLAYLIST_YEAR:
         log.error("Playlist year doesn't match current year, not unliking track.")
