@@ -112,6 +112,8 @@ def remove_track_from_playlist(track_id, playlist_id):
     """Remove a track from the specified playlist."""
     make_request(f'playlists/{playlist_id}/tracks', method='DELETE', data={"tracks": [{"uri": f"spotify:track:{track_id}"}]})
 
+def next_song():
+    make_request('me/player/next', method='POST')
 
 @bp.post("/like")
 def like():
@@ -165,6 +167,8 @@ def unlike():
         # Add to specified playlist
         add_track_to_playlist(track_id, PLAYLIST_ID)
         log.info(f"Added {track_name} to playlist {PLAYLIST_ID}.")
+
+        next_song()
 
     else:
         log.info(f"{track_name} is not in your Liked Songs, nothing to move.")
