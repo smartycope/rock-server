@@ -3,15 +3,23 @@ import json
 import os
 from flask import Blueprint
 from rock_server.utils import current_app
+import datetime as dt
 
 bp = Blueprint("spotify_controller", __name__)
 log = current_app.logger
 
+# This code is a little old, and could be cleaned up a little, but it works
+
 TOKEN_FILE = os.path.expanduser("~/.spotify_tokens")
 CLIENT_ID = "4f0aa311e38445b5bbb679197709eee1"
 CLIENT_SECRET = "8cb46e13ce4a4d35921e1bf0ca2db66b"
-PLAYLIST_ID = "5X1xVCi1QdDitU1ER07EES"
+# 2025 dump -- needs to be updated every year
+# This can be updated by going to the spotify web player, going to the playlist, and copying the playlist ID from the end of the URL
+PLAYLIST_ID = "1ozbdD746Xotifh0Jy3D9N"
+PLAYLIST_YEAR = 2025
 API_BASE = 'https://api.spotify.com/v1/'
+
+
 
 def load_tokens():
     """Load access and refresh tokens from the token file."""
@@ -107,6 +115,10 @@ def remove_track_from_playlist(track_id, playlist_id):
 
 @bp.post("/like")
 def like():
+    if dt.datetime.now().year != PLAYLIST_YEAR:
+        log.error("Playlist year doesn't match current year, not liking track.")
+        return "Invalid Year", 400
+
     # Get the current playing track
     current_track = get_current_playing_track()
     if not current_track:
@@ -128,6 +140,10 @@ def like():
 
 @bp.post("/unlike")
 def unlike():
+    if dt.datetime.now().year != PLAYLIST_YEAR:
+        log.error("Playlist year doesn't match current year, not unliking track.")
+        return "Invalid Year", 400
+
     # Get the current playing track
     current_track = get_current_playing_track()
     if not current_track:
