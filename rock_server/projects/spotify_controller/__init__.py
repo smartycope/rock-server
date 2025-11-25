@@ -63,13 +63,13 @@ def refresh_token():
         save_tokens(new_access_token, token)  # Save the new access token
         global AUTH_HEADERS
         AUTH_HEADERS = {'Authorization': f'Bearer {new_access_token}'}
-        log.info("Access token refreshed successfully.")
+        log.debug("Access token refreshed successfully.")
     else:
-        log.info(f"Failed to refresh token: {response.status_code} - {response.text}")
+        log.error(f"Failed to refresh token: {response.status_code} - {response.text}")
         raise Exception("Unable to refresh access token.")
 
 def make_request(endpoint, method='GET', data=None, raw=False, **query_params):
-    log.info(f'Making {method} request to {endpoint}')
+    log.debug(f'Making {method} request to {endpoint}')
 
     url = API_BASE + endpoint
     if method == 'GET':
@@ -84,7 +84,7 @@ def make_request(endpoint, method='GET', data=None, raw=False, **query_params):
         raise TypeError('Invalid method given to make_request')
 
     if response.status_code == 401:
-        log.info("Access token expired. Attempting to refresh...")
+        log.debug("Access token expired. Attempting to refresh...")
         refresh_token()
         # Retry the request with the refreshed token
         return make_request(endpoint, method, data, **query_params)
@@ -94,12 +94,11 @@ def make_request(endpoint, method='GET', data=None, raw=False, **query_params):
             return response
         return response.json() if response.content else None
     else:
-        log.info(f'Request to \n{endpoint} Failed with code {response.status_code}')
+        log.error(f'Request to \n{endpoint} Failed with code {response.status_code}')
         return None
 
 def get_current_playing_track():
     response = make_request('me/player/currently-playing')
-    log.debug(response)
     if response and response.get('item'):
         return response['item']
     return None
@@ -142,7 +141,7 @@ def like():
 
     track_id = current_track['id']
     track_name = current_track['name']
-    log.info(f"Currently playing track: {track_name}")
+    log.debug(f"Currently playing track: {track_name}")
 
     # Add the track to Liked Songs
     like_track(track_id)
@@ -168,11 +167,11 @@ def unlike():
 
     track_id = current_track['id']
     track_name = current_track['name']
-    log.info(f"Currently playing track: {track_name}")
+    log.debug(f"Currently playing track: {track_name}")
 
     # Check if the track is liked
     if check_if_track_is_liked(track_id):
-        log.info(f"{track_name} is in your Liked Songs.")
+        log.debug(f"{track_name} is in your Liked Songs.")
 
         # Remove from Liked Songs
         remove_track_from_liked(track_id)
