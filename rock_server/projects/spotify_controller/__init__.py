@@ -68,7 +68,7 @@ def refresh_token():
         log.info(f"Failed to refresh token: {response.status_code} - {response.text}")
         raise Exception("Unable to refresh access token.")
 
-def make_request(endpoint, method='GET', data=None, **query_params):
+def make_request(endpoint, method='GET', data=None, raw=False, **query_params):
     log.info(f'Making {method} request to {endpoint}')
 
     url = API_BASE + endpoint
@@ -90,6 +90,8 @@ def make_request(endpoint, method='GET', data=None, **query_params):
         return make_request(endpoint, method, data, **query_params)
 
     if response.status_code in (200, 201, 204):
+        if raw:
+            return response
         return response.json() if response.content else None
     else:
         log.info(f'Request to \n{endpoint} Failed with code {response.status_code}')
@@ -97,6 +99,7 @@ def make_request(endpoint, method='GET', data=None, **query_params):
 
 def get_current_playing_track():
     response = make_request('me/player/currently-playing')
+    log.debug(response)
     if response and response.get('item'):
         return response['item']
     return None
@@ -122,7 +125,7 @@ def remove_track_from_playlist(track_id, playlist_id):
     make_request(f'playlists/{playlist_id}/tracks', method='DELETE', data={"tracks": [{"uri": f"spotify:track:{track_id}"}]})
 
 def next_song():
-    make_request('me/player/next', method='POST')
+    make_request('me/player/next', method='POST', raw=True)
 
 @bp.put("/like")
 def like():
