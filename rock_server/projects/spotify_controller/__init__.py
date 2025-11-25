@@ -187,9 +187,9 @@ def unlike():
 
 @bp.put("/add-to-playlist/<playlist>")
 def add_to_playlist(playlist):
-    if playlist not in PLAYLIST_IDS:
+    if playlist not in PLAYLISTS:
         log.error(f"Invalid playlist: {playlist}")
-        return "Invalid Playlist. Options are " + ", ".join(PLAYLIST_IDS.keys()), 400
+        return "Invalid Playlist. Options are " + ", ".join(PLAYLISTS.keys()), 400
 
     # Get the current playing track
     current_track = get_current_playing_track()
@@ -202,7 +202,7 @@ def add_to_playlist(playlist):
     # log.info(f"Currently playing track: {track_name}")
 
     # Add the track to the specified playlist
-    add_track_to_playlist(track_id, PLAYLIST_IDS[playlist])
-    log.info(f"Added {track_name} to playlist {PLAYLIST_IDS[playlist]}.")
+    add_track_to_playlist(track_id, PLAYLISTS[playlist])
+    log.info(f"Added {track_name} to playlist {PLAYLISTS[playlist]}.")
 
     return "", 204
