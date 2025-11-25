@@ -15,11 +15,20 @@ CLIENT_ID = "4f0aa311e38445b5bbb679197709eee1"
 CLIENT_SECRET = "8cb46e13ce4a4d35921e1bf0ca2db66b"
 # 2025 dump -- needs to be updated every year
 # This can be updated by going to the spotify web player, going to the playlist, and copying the playlist ID from the end of the URL
-PLAYLIST_ID = "1ozbdD746Xotifh0Jy3D9N"
-PLAYLIST_YEAR = 2025
+PLAYLISTS = {
+    "2025 Dump": "1ozbdD746Xotifh0Jy3D9N",
+    "No Words": "3o4eNBILJD005pPNLAnmOv",
+    "Off Meds Music": "2VUxCZVmiwA8hktCocQ1hC",
+}
 API_BASE = 'https://api.spotify.com/v1/'
 
 
+def dump_playlist_id():
+    try:
+        return PLAYLISTS[str(dt.datetime.now().year) + " Dump"]
+    except Exception as e:
+        log.error(f"Error getting dump playlist ID: {e}")
+        return
 
 def load_tokens():
     """Load access and refresh tokens from the token file."""
@@ -115,9 +124,10 @@ def remove_track_from_playlist(track_id, playlist_id):
 def next_song():
     make_request('me/player/next', method='POST')
 
-@bp.get("/like")
+@bp.put("/like")
 def like():
-    if dt.datetime.now().year != PLAYLIST_YEAR:
+    DUMP_PLAYLIST_ID = dump_playlist_id()
+    if not DUMP_PLAYLIST_ID:
         log.error("Playlist year doesn't match current year, not liking track.")
         return "Invalid Year", 400
 
@@ -125,7 +135,7 @@ def like():
     current_track = get_current_playing_track()
     if not current_track:
         log.info("No track is currently playing.")
-        return
+        return "No track is currently playing.", 202
 
     track_id = current_track['id']
     track_name = current_track['name']
@@ -135,14 +145,15 @@ def like():
     like_track(track_id)
     log.info(f"Added {track_name} to Liked Songs.")
 
-    remove_track_from_playlist(track_id, PLAYLIST_ID)
-    log.info(f"Removed {track_name} from playlist {PLAYLIST_ID}.")
+    remove_track_from_playlist(track_id, DUMP_PLAYLIST_ID)
+    log.info(f"Removed {track_name} from playlist {DUMP_PLAYLIST_ID}.")
 
-    return "", 200
+    return "", 204
 
-@bp.get("/unlike")
+@bp.put("/unlike")
 def unlike():
-    if dt.datetime.now().year != PLAYLIST_YEAR:
+    DUMP_PLAYLIST_ID = dump_playlist_id()
+    if not DUMP_PLAYLIST_ID:
         log.error("Playlist year doesn't match current year, not unliking track.")
         return "Invalid Year", 400
 
@@ -150,7 +161,7 @@ def unlike():
     current_track = get_current_playing_track()
     if not current_track:
         log.info("No track is currently playing.")
-        return
+        return "No track is currently playing.", 202
 
     track_id = current_track['id']
     track_name = current_track['name']
@@ -165,12 +176,33 @@ def unlike():
         log.info(f"Removed {track_name} from your Liked Songs.")
 
         # Add to specified playlist
-        add_track_to_playlist(track_id, PLAYLIST_ID)
-        log.info(f"Added {track_name} to playlist {PLAYLIST_ID}.")
+        add_track_to_playlist(track_id, DUMP_PLAYLIST_ID)
+        log.info(f"Added {track_name} to playlist {DUMP_PLAYLIST_ID}.")
 
         next_song()
-
     else:
         log.info(f"{track_name} is not in your Liked Songs, nothing to move.")
 
-    return "", 200
+    return "", 204
+
+@bp.put("/add-to-playlist/<playlist>")
+def add_to_playlist(playlist):
+    if playlist not in PLAYLIST_IDS:
+        log.error(f"Invalid playlist: {playlist}")
+        return "Invalid Playlist. Options are " + ", ".join(PLAYLIST_IDS.keys()), 400
+
+    # Get the current playing track
+    current_track = get_current_playing_track()
+    if not current_track:
+        log.info("No track is currently playing.")
+        return "No track is currently playing.", 202
+
+    track_id = current_track['id']
+    track_name = current_track['name']
+    # log.info(f"Currently playing track: {track_name}")
+
+    # Add the track to the specified playlist
+    add_track_to_playlist(track_id, PLAYLIST_IDS[playlist])
+    log.info(f"Added {track_name} to playlist {PLAYLIST_IDS[playlist]}.")
+
+    return "", 204
