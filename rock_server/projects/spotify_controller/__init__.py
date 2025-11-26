@@ -4,6 +4,8 @@ import os
 from flask import Blueprint
 from rock_server.utils import current_app
 import datetime as dt
+from werkzeug.exceptions import Unauthorized, HTTPException
+
 
 bp = Blueprint("spotify_controller", __name__)
 log = current_app.logger
@@ -27,8 +29,8 @@ def dump_playlist_id():
     try:
         return PLAYLISTS[str(dt.datetime.now().year) + " Dump"]
     except Exception as e:
-        log.error(f"Error getting dump playlist ID: {e}")
-        return
+        log.error("Error getting dump playlist ID: " + str(e))
+        raise HTTPException("Invalid dump playlist year", 400)
 
 def load_tokens():
     """Load access and refresh tokens from the token file."""
@@ -66,7 +68,7 @@ def refresh_token():
         log.debug("Access token refreshed successfully.")
     else:
         log.error(f"Failed to refresh token: {response.status_code} - {response.text}")
-        raise Exception("Unable to refresh access token.")
+        raise Unauthorized("Unable to refresh access token.")
 
 def make_request(endpoint, method='GET', data=None, raw=False, **query_params):
     log.debug(f'Making {method} request to {endpoint}')
@@ -150,14 +152,12 @@ def like():
     remove_track_from_playlist(track_id, DUMP_PLAYLIST_ID)
     log.info(f"Removed {track_name} from playlist {DUMP_PLAYLIST_ID}.")
 
-    return "", 204
+    return "Success", 204
 
 @bp.put("/unlike")
 def unlike():
+    # If this errors out, we want it to do it here, not after we've already done things
     DUMP_PLAYLIST_ID = dump_playlist_id()
-    if not DUMP_PLAYLIST_ID:
-        log.error("Playlist year doesn't match current year, not unliking track.")
-        return "Invalid Year", 400
 
     # Get the current playing track
     current_track = get_current_playing_track()
@@ -179,13 +179,13 @@ def unlike():
 
         # Add to specified playlist
         add_track_to_playlist(track_id, DUMP_PLAYLIST_ID)
-        log.info(f"Added {track_name} to playlist {DUMP_PLAYLIST_ID}.")
+        log.info(f"Added {track_name} to dump playlist {DUMP_PLAYLIST_ID}.")
 
         next_song()
     else:
         log.info(f"{track_name} is not in your Liked Songs, nothing to move.")
 
-    return "", 204
+    return "Success", 204
 
 @bp.put("/add-to-playlist/<playlist>")
 def add_to_playlist(playlist):
@@ -207,4 +207,4 @@ def add_to_playlist(playlist):
     add_track_to_playlist(track_id, PLAYLISTS[playlist])
     log.info(f"Added {track_name} to playlist {PLAYLISTS[playlist]}.")
 
-    return "", 204
+    return "Success", 204
