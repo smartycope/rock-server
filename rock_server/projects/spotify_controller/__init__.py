@@ -18,7 +18,7 @@ CLIENT_SECRET = "8cb46e13ce4a4d35921e1bf0ca2db66b"
 # 2025 dump -- needs to be updated every year
 # This can be updated by going to the spotify web player, going to the playlist, and copying the playlist ID from the end of the URL
 PLAYLISTS = {
-    "2025 Dump": "1ozbdD746Xotifh0Jy3D9N",
+    "2026 Dump": "7mIsefMJo31ErQs6fAChlq",
     "No Words": "3o4eNBILJD005pPNLAnmOv",
     "Off Meds Music": "2VUxCZVmiwA8hktCocQ1hC",
 }
