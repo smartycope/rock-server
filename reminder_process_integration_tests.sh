@@ -1,0 +1,1 @@
+python3 rock-server/tests/manual_test_scripts/check_process_talking.py

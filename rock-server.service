@@ -1,0 +1,16 @@
+[Unit]
+Description=Rock Server
+After=network.target
+
+[Service]
+User=rock
+WorkingDirectory=/home/rock/rock-server
+ExecStart=/home/rock/rock-server/bin/gunicorn -w 6 -b 0.0.0.0:5000 rock_server.app:app
+Restart=always
+RestartSec=2
+Environment=PYTHONUNBUFFERED=1
+StandardOutput=append:/home/rock/rock-server/system.log
+StandardError=append:/home/rock/rock-server/system.log
+
+[Install]
+WantedBy=multi-user.target

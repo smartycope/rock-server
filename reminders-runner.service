@@ -1,0 +1,16 @@
+[Unit]
+Description=Rock Server
+After=network.target
+
+[Service]
+User=rock
+WorkingDirectory=/home/rock/rock-server/rock_server/projects/irregular_reminders/reminders_runner/
+ExecStart=/home/rock/rock-server/bin/gunicorn -w 1 --threads 1 -b 127.0.0.1:5050 app:app
+Restart=always
+RestartSec=2
+Environment=PYTHONUNBUFFERED=1
+StandardOutput=append:/home/rock/rock-server/rock_server/projects/irregular_reminders/reminders_runner/reminder_runner.log
+StandardError=append:/home/rock/rock-server/rock_server/projects/irregular_reminders/reminders_runner/reminder_runner.log
+
+[Install]
+WantedBy=multi-user.target
