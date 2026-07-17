@@ -76,6 +76,28 @@ def github_webhook():
         return {"error": str(e)}, 500
     return {"status": "restarted"}, 200
 
+# Not a system endpoint, but I'm lazy
+@bp.route("/evme-github-webhook/", methods=["POST"])
+def evme_github_webhook():
+    """ Triggered by the Evme github repo. Pulls the latest changes only """
+    log.info("Evme Github change detected")
+    try:
+        # log.info("Pulling from remote...")
+        # origin = repo.remotes.origin
+        # origin.pull()
+        # repo.submodule_update(init=True, recursive=True)
+        # log.info("Pull successful")
+        # threading.Thread(target=restart_service).start()
+        subprocess.run(["git", "pull", "origin", "master"], check=True, cwd="/home/marvin/evme_streamlit")
+        # threading.Thread(target=restart_service).start()
+    except subprocess.CalledProcessError as e:
+        log.error("Failed to restart Evme service: %s", e)
+        return {"error": str(e)}, 500
+    except Exception as e:
+        log.error("Failed to pull from Evme remote: %s", e)
+        return {"error": str(e)}, 500
+    return {"status": "restarted"}, 200
+
 @bp.route("/info/")
 def info():
     """ Return information about the server """
