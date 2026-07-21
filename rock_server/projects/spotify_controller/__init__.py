@@ -5,6 +5,9 @@ from flask import Blueprint
 from rock_server.utils import current_app
 import datetime as dt
 from werkzeug.exceptions import Unauthorized, HTTPException
+from flask import Flask, redirect, request
+import requests
+import base64
 
 
 bp = Blueprint("spotify_controller", __name__)
@@ -15,7 +18,8 @@ log = current_app.logger
 TOKEN_FILE = os.path.expanduser("~/.spotify_tokens")
 CLIENT_ID = "4f0aa311e38445b5bbb679197709eee1"
 CLIENT_SECRET = "8cb46e13ce4a4d35921e1bf0ca2db66b"
-# 2025 dump -- needs to be updated every year
+
+# This needs to be updated every year
 # This can be updated by going to the spotify web player, going to the playlist, and copying the playlist ID from the end of the URL
 PLAYLISTS = {
     "2026 Dump": "7mIsefMJo31ErQs6fAChlq",
@@ -208,3 +212,79 @@ def add_to_playlist(playlist):
     log.info(f"Added {track_name} to playlist {PLAYLISTS[playlist]}.")
 
     return "Success", 204
+
+
+
+
+REDIRECT_URI = "https://api.smartycope.org/spotify-controller/callback"
+SCOPE = (
+    "playlist-read-private "
+    "playlist-modify-private "
+    "playlist-modify-public "
+    "user-library-read "
+    "user-read-playback-state "
+    "user-modify-playback-state"
+)
+
+AUTH_URL = "https://accounts.spotify.com/authorize"
+TOKEN_URL = "https://accounts.spotify.com/api/token"
+
+
+@bp.get("/authorize")
+def spotify_authorize():
+    params = {
+        "client_id": CLIENT_ID,
+        "response_type": "code",
+        "redirect_uri": REDIRECT_URI,
+        "scope": SCOPE,
+        "show_dialog": "true",   # Ensures Spotify issues a fresh refresh token
+    }
+
+    req = requests.Request("GET", AUTH_URL, params=params).prepare()
+    return redirect(req.url)
+
+
+@bp.get("/callback")
+def spotify_callback():
+    if "error" in request.args:
+        return {"error": request.args["error"]}, 400
+
+    code = request.args.get("code")
+    if not code:
+        return {"error": "Missing authorization code"}, 400
+
+    auth_header = base64.b64encode(
+        f"{CLIENT_ID}:{CLIENT_SECRET}".encode()
+    ).decode()
+
+    response = requests.post(
+        TOKEN_URL,
+        headers={
+            "Authorization": f"Basic {auth_header}",
+            "Content-Type": "application/x-www-form-urlencoded",
+        },
+        data={
+            "grant_type": "authorization_code",
+            "code": code,
+            "redirect_uri": REDIRECT_URI,
+        },
+    )
+
+    response.raise_for_status()
+
+    token_data = response.json()
+
+    refresh = token_data.get("refresh_token")
+    access_token = token_data.get("access_token")
+
+    # Save the refresh token somewhere persistent
+    with open(TOKEN_FILE, "w") as f:
+        json.dump({"refresh_token": refresh, "access_token": access_token}, f)
+
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh,
+        "expires_in": token_data.get("expires_in"),
+        "scope": token_data.get("scope"),
+        "token_type": token_data.get("token_type"),
+    }
